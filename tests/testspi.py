@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
-__author__ = 'hasch'
 
 from pyBusPirateLite.SPI import *
+
 spi = SPI('COM3', 115200)
 spi.BBmode()
 spi.enter_SPI()
