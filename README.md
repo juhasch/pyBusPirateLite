@@ -2,6 +2,7 @@
 Python library for BusPirate
 
 Based on code from Garrett Berg <cloudform511@gmail.com>
+
 http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/
 
 -------------------------

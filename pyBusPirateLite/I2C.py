@@ -22,36 +22,35 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
-try:
-   from .BitBang import BBIO
-except ValueError:
-   from BitBang import BBIO
+
+from .BitBang import BBIO
+
 
 class I2CSpeed:
-   _400KHZ = 0x03
-   _100KHZ = 0x02
-   _50KHZ = 0x01
-   _5KHZ = 0x00
+    _400KHZ = 0x03
+    _100KHZ = 0x02
+    _50KHZ = 0x01
+    _5KHZ = 0x00
+
 
 class I2CPins:
-   POWER = 0x8
-   PULLUPS = 0x4
-   AUX = 0x2
-   CS = 0x1
+    POWER = 0x8
+    PULLUPS = 0x4
+    AUX = 0x2
+    CS = 0x1
 
 pin_mapping = {'AUX':   0b10,
-              'CS':     0b01 }
+               'CS':     0b01 }
+
 
 class I2C(BBIO):
-   def send_ack(self):
-      self.check_mode('i2c')
-      self.port.write("\x06")
-      #self.timeout(0.1)
-      return self.response()
+    def send_ack(self):
+        self.check_mode('i2c')
+        self.port.write(bytes([0x06]))
+        return self.response(1, True)
 
-   def send_nack(self):
-      self.check_mode('i2c')
-      self.port.write("\x07")
-      #self.timeout(0.1)
-      return self.response()
+    def send_nack(self):
+        self.check_mode('i2c')
+        self.port.write(bytes([0x07]))
+        return self.response(1, True)
 

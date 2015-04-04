@@ -26,46 +26,47 @@ along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 inary1WIRE mode:
 # 00000000 - reset to BBIO
-# 00000001 – mode version string (1W01)
-# 00000010 – 1wire reset
+# 00000001 - mode version string (1W01)
+# 00000010 - 1wire reset
 # 00000100 - read byte
 # 00001000 - ROM search macro (0xf0)
 # 00001001 - ALARM search macro (0xec)
-# 0001xxxx – Bulk transfer, send 1-16 bytes (0=1byte!)
-# 0100wxyz – Configure peripherals w=power, x=pullups, y=AUX, z=CS (
-# 0101wxyz – read peripherals (planned, not implemented)
+# 0001xxxx - Bulk transfer, send 1-16 bytes (0=1byte!)
+# 0100wxyz - Configure peripherals w=power, x=pullups, y=AUX, z=CS (
+# 0101wxyz - Read peripherals (planned, not implemented)
 """
 
-try:
-   from .BitBang import BBIO
-except ValueError:
-   from BitBang import BBIO
+from .BitBang import BBIO
 
-class _1WIRE(BBIO):
-	def __init__(self, port, speed):
-		BBIO.__init__(self, port, speed)
 
-	def _1wire_reset(self):
-		self.check_mode('1wire')
-		self.port.write("\x02")
-		self.timeout(0.1)
-		return self.response(1)
+class OneWire(BBIO):
+    def reset(self):
+        self.check_mode('1wire')
+        self.port.write(chr(0x02))
+        self.timeout(0.1)
+        return self.response(1)
 
-	def rom_search(self):
-		self.check_mode('1wire')
-		self.port.write("\x08")
-		self.timeout(0.1)
-		self.__group_response()
+    def rom_search(self):
+        self.check_mode('1wire')
+        self.port.write(chr(0x08))
+        self.timeout(0.1)
+        self.__group_response()
 
-	def alarm_search(self):
-		self.check_mode('1wire')
-		self.port.write("\x09")
-		self.timeout(0.1)
-		self.__group_response()
+    def alarm_search(self):
+        self.check_mode('1wire')
+        self.port.write(chr(0x09))
+        self.timeout(0.1)
+        self.__group_response()
 
-	def __group_response(self):
-		self.check_mode('1wire')
-		EOD = [0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff]
-		while (data == self.port.read(8)) != EOD:
-			print data
-
+    def __group_response(self):
+        self.check_mode('1wire')
+        EOD = chr(0xff)
+        count = 0
+        while count < 8:
+            if count > 255:
+                raise IOError('EOD counter exceeded')
+            data = self.port.read(8)
+            if data == EOD:
+                count +=1
+            else:
+                print(data)
