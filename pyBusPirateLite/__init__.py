@@ -7,6 +7,9 @@ Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 Overhauled and edited by Garrett Berg on 2011- 1 - 22
 Copyright 2011 Garrett Berg <cloudform511@gmail.com>
 
+Updated and made Python3 compatible by Juergen Hasch, 20160501
+Copyright 2016 Juergen Hasch <python@elbonia.de>
+
 This file is part of pyBusPirate.
 
 pyBusPirate is free software: you can redistribute it and/or modify

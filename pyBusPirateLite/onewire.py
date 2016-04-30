@@ -40,6 +40,18 @@ from .BitBang import BBIO
 
 
 class OneWire(BBIO):
+    def enter_1wire(self):
+        self.check_mode('bb')
+        self.write(0x04)
+        self.timeout(self.minDelay * 10)
+        if self.response(4) == "1W01":
+            self.mode = '1wire'
+            self.bp_port = 0b00         # two bit port
+            self.bp_config = 0b0000
+            self._attempts_ = 1
+            return 1
+        return self.recurse_flush(self.enter_1wire)
+
     def reset(self):
         self.check_mode('1wire')
         self.port.write(chr(0x02))

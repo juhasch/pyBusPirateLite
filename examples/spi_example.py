@@ -2,24 +2,18 @@
 # -*- coding: utf-8 -*-
 # Example of SPI data transfer
 
-from pyBusPirateLite.SPI import *
+from pyBusPirateLite.SPI import SPI
 from pyBusPirateLite.BBIO_base import PinCfg
 
 spi = SPI()
-spi.connect('COM3')
-spi.enter_bb()
-spi.enter_spi()
 
 spi.cfg_pins(PinCfg.POWER | PinCfg.CS )
-spi.cfg_spi( 0x0c )
-spi.set_speed(SPISpeed._1MHZ)
+spi.config = SPI_cfg['PUSH_PULL'] | SPI_cfg['IDLE']
+spi.speed = '1MHz'
 
 # send two bytes and receive answer
-spi.cs_low()
+spi.cs = True
 data = spi.transfer( [0x82, 0x00])
-spi.cs_high()
+spi.cs = False
 
 print(ord(data[2]))
-
-spi.reset()
-spi.port.close()

@@ -4,7 +4,7 @@
 
 def testpin(bp_device, *pins):
    #pin dir testing
-   print 'config', bp_device.configure_peripherals(power = 'ON', pullups = 'on')
+   print('config', bp_device.configure_peripherals(power = True, pullups = True))
    bp_device.set_port(0)
    bp_device.set_dir(0)
 
@@ -15,12 +15,12 @@ def testpin(bp_device, *pins):
       bp_device.set_pin_dir(pin, 'out')
       for n in range(5): #do full loop 5 times
          raw_input('changing %s to 1, press enter' % pin)
-         print 'error checking:', bp_device.set_pin(pin)
-         print 'adc currently reads', bp_device.get_adc_voltage(), 'volts'
+         print('error checking:', bp_device.set_pin(pin))
+         print('adc currently reads', bp_device.get_adc_voltage(), 'volts')
 
          raw_input('now setting output to 0, press enter')
-         print 'error checking:', bp_device.clear_pin(pin)
-         print 'adc currently reads', bp_device.get_adc_voltage(), 'volts'
+         print('error checking:', bp_device.clear_pin(pin))
+         print('adc currently reads', bp_device.get_adc_voltage(), 'volts')
       raw_input('changing dir to input. press enter for next pin')
       bp_device.set_pin_dir(pin, 'in')
 
@@ -31,7 +31,7 @@ def pin_dir_test(bp_device, *pins):
    whenever you change the directions (and reseting to output no less).  Put
    a 5V pullup resistor on the pin and run this to see the effect'''
    #pin dir testing
-   print 'config', bp_device.configure_peripherals(power = 'ON', pullups = 'on')
+   print 'config', bp_device.configure_peripherals(power = True, pullups = True)
    bp_device.set_port(0)
    bp_device.set_dir(0x1F)
 

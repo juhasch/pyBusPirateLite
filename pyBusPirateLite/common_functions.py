@@ -22,23 +22,42 @@ along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from . import I2C
 
-import sys
 
+def init_i2c(bp_device, power=True, pullups=True, speed=I2C.I2CSpeed._50KHZ):
+    """initializes i2c mode with some common settings hardwired
 
-def init_i2c(bp_device, power='on', pullups='on', speed=I2C.I2CSpeed._50KHZ):
-    """initializes i2c mode with some common settings hardwired"""
+    Parameters
+    ---------
+    bp_device
+        Bus pirate device
+    power : bool
+        Turn on power
+    pullups : bool
+        Turn on pullups
+    speed: IC2.I2CSpeed
+        Transfer speed
+
+    Returns
+    -------
+    bool
+        True if device could be initialized
+    """
     if not bp_device.enter_I2C():
-        return None
+        return False
     if not bp_device.configure_peripherals(power, pullups):
-        return None
+        return False
     if not bp_device.set_speed(speed):
-        return None
+        return False
     bp_device.timeout(0.1)
-    return 1
+    return True
 
 
 def init_bb(bp_device, power='on', pullups='on'):
-    """initializes bit bang mode with the most common settings"""
+    """initializes bit bang mode with the most common settings
+
+    Parameters
+
+    """
     if not bp_device.enter_bb():
         return None
     if not bp_device.configure_peripherals(power, pullups):
