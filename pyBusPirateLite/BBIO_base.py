@@ -162,9 +162,10 @@ class BBIO_base:
         if portname == '':
             ports = list_ports.comports()
             for port in ports:
-                if port.description == 'FT232R USB UART':
-                    portname = port.device
-                    break
+                if hasattr(port, 'pid') and hasattr(port, 'vid'):
+                    if port.vid == 1027 and port.pid == 24577:
+                        portname = port.device
+                        break
         self.portname = portname
         try:
             self.port = serial.Serial(portname, speed, timeout=timeout)
