@@ -83,14 +83,16 @@ class BBIO_base:
         if self.connected is not True:
             raise IOError('Device not connected')
         self.timeout(self.minDelay * 10)
-        self.port.reset_input_buffer()
-        self.write(0x00)
+        self.port.flushInput()
+        for i in range(20):
+            self.write(0x00)
         if self.response(5) == "BBIO1":
             self.mode = 'bb'
             self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
             self.bp_port = 0x00  # out_port similar to ports in microcontrollers
             self.bp_dir = 0x1F  # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
             self.recurse_end()
+            self.port.flushInput()
             return
         self.recurse_flush(self.enter)
         raise BPError('Could not enter bitbang mode')
@@ -115,10 +117,12 @@ class BBIO_base:
         BPError
             If bus pirate does not respond correctly
         """
-        self.port.reset_input_buffer()
-        self.write(0x00)
+        self.port.flushInput()
+        for i in range(20):
+            self.write(0x00)
         self.timeout(self.minDelay * 10)
         if self.response(5) == "BBIO1":
+            self.port.flushInput()
             return
         raise ProtocolError('Could not return to bitbang mode')
 
@@ -300,7 +304,7 @@ class BBIO_base:
             self._attempts_ += 1
             for n in range(5):
                 self.write(0x00)
-            self.port.reset_input_buffer()
+            self.port.flushInput()
             return function(*args)
         raise IOError('bus pirate malfunctioning')
 
