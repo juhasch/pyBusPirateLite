@@ -36,7 +36,16 @@ pin_mapping = {'AUX':   0b10,
 
 class I2C(BBIO_base):
     def __init__(self, portname='', speed=115200, timeout=1):
-        """ Provide access to the Bus Pirate I2C hardware
+        """ Provide access to the Bus Pirate I2C interface
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
 
         Example
         -------

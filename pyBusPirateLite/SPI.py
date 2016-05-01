@@ -37,21 +37,31 @@ SPI_speed = { '30kHz' : 0b000,
               '4MHz'  : 0b110,
               '8MHz'  : 0b111}
 
-SPI_cfg = { 'PUSH_PULL' : 0x08,
-            'IDLE'     : 0x04,
-            'CLK_EDGE' : 0x02,
-            'SAMPLE'   : 0x01}
+CFG_SAMPLE = 0x01
+CFG_CLK_EDGE = 0x02
+CFG_IDLE = 0x04
+CFG_PUSH_PULL = 0x08
+
 
 class SPI(BBIO_base):
     def __init__(self, portname='', speed=115200, timeout=1):
         """ Provide high-speed access to the Bus Pirate SPI hardware
 
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+
         Example
         -------
         >>> spi = SPI()
-        >>> spi.pins(PinCfg.POWER | PinCfg.CS )
-        >>> spi.config(SPI_cfg['PUSH_PULL'] | SPI_cfg['IDLE'])
-        >>> spi.set_speed(SPI_speed['1MHz'])
+        >>> spi.state = PIN_POWER | PIN_CS
+        >>> spi.config(CFG_PUSH_PULL | CFG_IDLE)
+        >>> spi.speed = '1MHz'
         >>> spi.cs = True
         >>> data = spi.transfer( [0x82, 0x00])
         >>> spi.cs = False
@@ -87,6 +97,13 @@ class SPI(BBIO_base):
         raise BPError('Could not enter SPI mode')
 
     @property
+    def modestring(self):
+        """ Return mode version string """
+        self.write(0x01)
+        self.timeout(self.minDelay * 10)
+        return self.response(4)
+
+    @property
     def config(self):
         return self.spi_config
 
@@ -104,12 +121,15 @@ class SPI(BBIO_base):
 
         Parameters
         ----------
-        cfg
-            Values defined in SPICfg
-                OUT_TYPE:  pin output (0 = HiZ, 1 = push-pull)
-                IDLE: clock idle phase
-                CLK_EDIGE: clock edge
-                SAMP: sample time (0 = middle)
+        cfg : byte
+                CFG_SAMPLE: sample time (0 = middle)
+                CFG_CLK_EDGE: clock edge (1 = active to idle
+                CFG_IDLE: clock idle phase (0 = low)
+                CFG_PUSH_PULL: pin output (0 = HiZ, 1 = push-pull)
+
+        Examples
+        -------
+        >>> spi.config = CFG_PUSH_PULL | CFG_IDLE
 
         Raises
         ------
@@ -250,3 +270,34 @@ class SPI(BBIO_base):
         if self.response(1, True) != '\x01':
             raise ProtocolError("CS could not be set")
         self._cs = value
+
+
+@property
+def speed(self):
+    return self.spi_speed
+
+
+@speed.setter
+def speed(self, frequency):
+    """ Set SPI speed
+
+    Parameters
+    ----------
+    frequency : str
+        SPI clock speed (30kHz, 125kHz, 250kHz, 1MHz, 2MHz, 2.6MHz, 4MHz, 8MHz)
+
+    Raises
+    ------
+    ProtocolError
+        If I2C speed could not be set
+    """
+    try:
+        clock = SPI_speed[frequency]
+    except KeyError:
+        raise ValueError('Clock speed not supported')
+    self.write(0x60 | clock)
+
+    if self.response(1, True) != 0x01:
+        raise ProtocolError('Could not set SPI speed')
+    self.spi_speed = frequency
+

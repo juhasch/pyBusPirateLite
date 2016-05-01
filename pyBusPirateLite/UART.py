@@ -49,6 +49,27 @@ class UARTSpeed:
 
 
 class UART(BBIO_base):
+    def __init__(self, portname='', speed=115200, timeout=1):
+        """ Provide the Bus Pirate UART interface
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+
+        Example
+        -------
+        >>> spi = UART()
+        """
+        super().__init__()
+        self.connect(portname, speed, timeout)
+        self.enter()
+        self.uart_config = None
+
     def enter(self):
         """
 
@@ -73,21 +94,6 @@ class UART(BBIO_base):
         self.recurse_flush(self.enter)
         raise BPError('Could not enter UART mode')
 
-    def exit(self):
-        """ Exit to bitbang mode
-
-        This command resets the Bus Pirate into raw bitbang mode from the user terminal.
-        It also resets to raw bitbang mode from any protocol mode. This command always returns a five byte bitbang
-        version string "BBIOx", where x is the current bitbang protocol version (currently 1).
-
-        """
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
-        self.write(0x00)
-        self.timeout(self.minDelay * 10)
-        if self.response(5) == "BBIO1":
-            super().enter()
-        raise ProtocolError('Could not return to bitbang mode')
 
     def manual_speed_cfg(self, baud):
         """ Manual baud rate configuration, send 2 bytes
@@ -110,13 +116,9 @@ class UART(BBIO_base):
         return self.response()
 
     def begin_input(self):
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
         self.port.write(chr(0x04))
 
     def end_input(self):
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
         self.port.write(chr(0x05))
 
     def enter_bridge_mode(self):
@@ -124,22 +126,16 @@ class UART(BBIO_base):
 
         Starts a transparent UART bridge using the current configuration. Unplug the Bus Pirate to exit.
         """
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
         self.port.write(chr(0x0f))
         self.timeout(0.1)
         self.response(1, True)
 
     def set_cfg(self, cfg):
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
         self.port.write(chr(0xC0 | cfg))
         self.timeout(0.1)
         return self.response(1, True)
 
     def read_cfg(self):
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
         self.port.write(chr(0xd0))
         self.timeout(0.1)
         return self.response(1, True)
