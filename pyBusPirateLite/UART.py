@@ -23,7 +23,7 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .BBIO_base import BBIO_base, BPError, ProtocolError
+from .BBIO_base import BBIO_base, BPError
 
 FOSC = (32000000 / 2)
 
@@ -68,10 +68,11 @@ class UART(BBIO_base):
         super().__init__()
         self.connect(portname, speed, timeout)
         self.enter()
-        self.uart_config = None
+        self._config = None
+        self._echo = False
 
     def enter(self):
-        """
+        """ Enter UART mode
 
         Raises
         ------
@@ -80,9 +81,6 @@ class UART(BBIO_base):
         """
         if self.mode == 'uart':
             return
-        if self.mode != 'bb':
-            super().enter()
-
         self.write(0x03)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "ART1":
@@ -90,10 +88,30 @@ class UART(BBIO_base):
             self.bp_port = 0b00         # two bit port
             self.bp_config = 0b0000
             self.recurse_end()
-            return 1
+            return
         self.recurse_flush(self.enter)
         raise BPError('Could not enter UART mode')
 
+    @property
+    def modestring(self):
+        """ Return mode version string """
+        self.write(0x01)
+        self.timeout(self.minDelay * 10)
+        return self.response(4)
+
+    @property
+    def echo(self):
+        return self._echo
+
+    @echo.setter
+    def echo(self, mode):
+        if mode is True:
+            self.write(0x03)
+        else:
+            self.write(0x02)
+        if self.response(1, True) != '\x01':
+            raise ValueError("Could not set echo mode")
+        self._echo = mode
 
     def manual_speed_cfg(self, baud):
         """ Manual baud rate configuration, send 2 bytes
@@ -104,38 +122,36 @@ class UART(BBIO_base):
         Use the UART manual [PDF] or an online calculator to find the correct value (key values: fosc 32mHz,
         clock divider = 2, BRGH=1) . Bus Pirate responds 0x01 to each byte. Settings take effect immediately.
         """
-        if self.mode == 'uart':
-            raise BPError('Not in UART mode')
-        BRG = ((FOSC) / (4 * baud)) - 1
+        BRG = (FOSC / (4 * baud)) - 1
         BRGH = ((BRG >> 8) & 0xFF)
         BRGL = (BRG & 0xFF)
-        self.port.write(chr(0x02))
-        self.port.write(chr(BRGH))
-        self.port.write(chr(BRGL))
+        self.write(0x03)
+        self.write(BRGH)
+        self.write(BRGL)
         self.timeout(0.1)
         return self.response()
 
     def begin_input(self):
-        self.port.write(chr(0x04))
+        self.write(0x04)
 
     def end_input(self):
-        self.port.write(chr(0x05))
+        self.write(0x05)
 
     def enter_bridge_mode(self):
         """ UART bridge mode (reset to exit)
 
         Starts a transparent UART bridge using the current configuration. Unplug the Bus Pirate to exit.
         """
-        self.port.write(chr(0x0f))
+        self.write(0x0f)
         self.timeout(0.1)
         self.response(1, True)
 
     def set_cfg(self, cfg):
-        self.port.write(chr(0xC0 | cfg))
+        self.write(0xC0 | cfg)
         self.timeout(0.1)
         return self.response(1, True)
 
     def read_cfg(self):
-        self.port.write(chr(0xd0))
+        self.write(0xd0)
         self.timeout(0.1)
         return self.response(1, True)

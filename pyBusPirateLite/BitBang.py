@@ -26,7 +26,7 @@ import serial
 from .BBIO_base import BBIO_base, BPError, ProtocolError
 
 class BitBang(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1):
+    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
         """ Provide access to the Bus Pirate bitbang mode
 
         Parameters
@@ -43,8 +43,89 @@ class BitBang(BBIO_base):
         >>> bb = BitBang()
         """
         super().__init__()
-        self.connect(portname, speed, timeout)
-        self.enter()
+        if connect is True:
+            self.connect(portname, speed, timeout)
+            self.enter()
+
+    @property
+    def outputs(self):
+        """
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+
+        """
+
+        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
+        self.timeout(self.minDelay * 10)
+        return ord(self.response(1, True)) & 0x1f
+
+    @outputs.setter
+    def outputs(self, pinlist=0):
+        """ Configure pins as input our output
+
+        Notes
+        -----
+        The Bus pirate responds to each direction update with a byte showing the current state of the pins, regardless
+        of direction. This is useful for open collector I/O modes. Used in every mode to configure pins.
+        In bb it configures as either input or output, in the other modes it normally configures peripherals such as
+        power supply and the aux pin
+
+        Parameters
+        ----------
+        pinlist : byte
+            List of pins to be set as outputs (default: all inputs)
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+        """
+        self.pins_direction = pinlist & 0x1f
+        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
+        self.timeout(self.minDelay * 10)
+        self.response(1, True)
+
+    @property
+    def pins(self):
+        """ Get pins status
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+        """
+        self.write(0x80 | (self.pins_state & 0x7f))
+        self.timeout(self.minDelay * 10)
+        self.pins_state = ord(self.response(1, True)) & 0x7f
+        return self.pins_state
+
+    @pins.setter
+    def pins(self, pinlist=0):
+        """ Set pins to high or low
+
+        Notes
+        -----
+        The lower 7bits of the command byte control the Bus Pirate pins and peripherals.
+        Bitbang works like a player piano or bitmap. The Bus Pirate pins map to the bits in the command byte as follows:
+        1|POWER|PULLUP|AUX|MOSI|CLK|MISO|CS
+        The Bus pirate responds to each update with a byte in the same format that shows the current state of the pins.
+
+        Parameters
+        ----------
+        pinlist : byte
+            List of pins to be set high
+            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+
+        """
+        self.pins_state = pinlist & 0x7f
+        self.write(0x80 | self.pins_state)
+        self.timeout(self.minDelay * 10)
+        self.pins_state = ord(self.response(1, True)) & 0x7f
 
     @property
     def adc(self):
@@ -58,6 +139,7 @@ class BitBang(BBIO_base):
         self.write(0x14)
         self.timeout(self.minDelay)
         ret = self.response(2, True)
+        print('0: %d, 1: %d' % (ret[0], ret[1]))
         voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
         return voltage
@@ -137,8 +219,8 @@ class BitBang(BBIO_base):
             raise ProtocolError('Self test did not return to bitbang mode')
         return ord(errors)
 
-    def set_pwm_frequency(self, frequency, dutycycle=.5):
-        """set PWM frequency and duty cycle.
+    def enable_PWM(self, frequency, dutycycle=.5):
+        """ Enable PWM output 
 
         Parameters
         ----------
@@ -149,10 +231,16 @@ class BitBang(BBIO_base):
 
         Notes
         -----
-        Stolen from http://codepad.org/qtYpZmIF
+        Configure and enable pulse-width modulation output in the AUX pin. Requires a 5 byte configuration sequence.
+        Responds 0x01 after a complete sequence is received. The PWM remains active after leaving binary bitbang mode!
+        Equations to calculate the PWM frequency and period are in the PIC24F output compare manual.
+        Bit 0 and 1 of the first configuration byte set the prescaler value. The Next two bytes set the duty cycle
+        register, high 8bits first. The final two bytes set the period register, high 8bits first.
+        
+        Parameter calculation stolen from http://codepad.org/qtYpZmIF
 
         """
-        if DutyCycle > 1:
+        if dutycycle > 1:
             raise ValueError('Duty cycle should be between 0 and 1')
         Fosc = 24e6
         Tcy = 2.0 / Fosc
@@ -165,30 +253,17 @@ class BitBang(BBIO_base):
             Prescaler = PrescalerList[n]
             PRy = PwmPeriod * 1.0 / (Tcy * Prescaler)
             PRy = int(PRy - 1)
-            OCR = int(PRy * DutyCycle)
+            OCR = int(PRy * dutycycle)
 
             if PRy < (2 ** 16 - 1):
                 break  # valid value for PRy, keep values
         else:
             raise ValueError('frequency requested is invalid')
 
-        if self.setup_PWM(prescaler=Prescaler, dutycycle=OCR, period=PRy):
-            self.recurse_end()
-            return 1
-        return self.recurse(self.set_pwm_frequency, frequency, DutyCycle)
+        prescaler=Prescaler
+        dutycycle=OCR
+        period=PRy
 
-    def setup_PWM(self, prescaler, dutycycle, period):
-        """ Setup pulse-width modulation
-
-        Notes
-        -----
-        Configure and enable pulse-width modulation output in the AUX pin. Requires a 5 byte configuration sequence.
-        Responds 0x01 after a complete sequence is received. The PWM remains active after leaving binary bitbang mode!
-        Equations to calculate the PWM frequency and period are in the PIC24F output compare manual.
-        Bit 0 and 1 of the first configuration byte set the prescaler value. The Next two bytes set the duty cycle
-        register, high 8bits first. The final two bytes set the period register, high 8bits first.
-
-        """
         self.write(0x12)
         self.write(prescaler)
         self.write((dutycycle >> 8) & 0xFF)

@@ -35,7 +35,7 @@ pin_mapping = {'AUX':   0b10,
 
 
 class I2C(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1):
+    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
         """ Provide access to the Bus Pirate I2C interface
 
         Parameters
@@ -53,8 +53,9 @@ class I2C(BBIO_base):
         >>> i2c.speed = '400kHz'
         """
         super().__init__()
-        self.connect(portname, speed, timeout)
-        self.enter()
+        if connect is True:
+            self.connect(portname, speed, timeout)
+            self.enter()
 
     def enter(self):
         """ Enter I2C mode
@@ -185,6 +186,13 @@ class I2C(BBIO_base):
 
     @property
     def speed(self):
+        """ Return current I2C clock speed
+
+        Returns
+        -------
+        str
+            I2C clock speed (5kHz, 50kHz, 100kHz, 400kHz)
+        """
         return self.i2c_speed
 
     @speed.setter

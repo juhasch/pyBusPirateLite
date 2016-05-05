@@ -86,6 +86,11 @@ class BBIO_base:
         self.port.flushInput()
         for i in range(20):
             self.write(0x00)
+            r = self.response(1, True)
+            if r:
+                break
+        self.port.flushInput()
+        self.write(0x00)
         if self.response(5) == "BBIO1":
             self.mode = 'bb'
             self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
@@ -97,34 +102,6 @@ class BBIO_base:
         self.recurse_flush(self.enter)
         raise BPError('Could not enter bitbang mode')
 
-    def reset(self):
-        """ Reset to raw bitbang mode
-
-        Notes
-        -----
-        This command resets the Bus Pirate into raw bitbang mode from the user terminal. It also resets to raw bitbang
-        mode from raw SPI mode, or any other protocol mode. This command always returns a five byte bitbang version
-        string "BBIOx", where x is the current protocol version (currently 1).
-        Some terminals send a NULL character (0x00) on start-up, causing the Bus Pirate to enter binary mode when it
-        wasn't wanted. To get around this, you must now enter 0x00 at least 20 times to enter raw bitbang mode.
-        Note: The Bus Pirate user terminal could be stuck in a configuration menu when your program attempts to enter
-        binary mode. One way to ensure that you're at the command line is to send <enter> at least 10 times, and then
-        send '#' to reset. Next, send 0x00 to the command line 20+ times until you get the BBIOx version string.
-        After entering bitbang mode, you can enter other binary protocol modes.
-
-        Raises
-        -------
-        BPError
-            If bus pirate does not respond correctly
-        """
-        self.port.flushInput()
-        for i in range(20):
-            self.write(0x00)
-        self.timeout(self.minDelay * 10)
-        if self.response(5) == "BBIO1":
-            self.port.flushInput()
-            return
-        raise ProtocolError('Could not return to bitbang mode')
 
     def hw_reset(self):
         """Reset Bus Pirate
@@ -187,6 +164,7 @@ class BBIO_base:
         sleep(timeout)
 
     def write(self, value):
+#        print('val %s' % value.to_bytes(1, 'big'))
         self.port.write(value.to_bytes(1, 'big'))
         
     def response(self, byte_count=1, binary=False):
@@ -201,95 +179,10 @@ class BBIO_base:
         """
         data = self.port.read(byte_count)
         if binary is True:
-            if byte_count ==1 :
-                print('Response: %s' % ord(data))
             return data
         else:
-            print('Decoded response: %s' % data)
             return data.decode()
 
-    @property
-    def outputs(self):
-        """
-        Returns
-        -------
-        byte
-            Current state of the pins
-            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
-
-        """
-
-        self.write(0x40 | ~ self.pins_direction & 0x1f) # map input->1, output->0
-        self.timeout(self.minDelay * 10)
-        return ord(self.response(1, True)) & 0x1f
-
-    @outputs.setter
-    def outputs(self, pinlist=0):
-        """ Configure pins as input our output
-
-        Notes
-        -----
-        The Bus pirate responds to each direction update with a byte showing the current state of the pins, regardless
-        of direction. This is useful for open collector I/O modes. Used in every mode to configure pins.
-        In bb it configures as either input or output, in the other modes it normally configures peripherals such as
-        power supply and the aux pin
-
-        Parameters
-        ----------
-        pinlist : byte
-            List of pins to be set as outputs (default: all inputs)
-            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
-
-        Returns
-        -------
-        byte
-            Current state of the pins
-            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
-        """
-        self.pins_direction = pinlist & 0x1f
-        self.write(0x40 | ~ self.pins_direction & 0x1f) # map input->1, output->0
-        self.timeout(self.minDelay * 10)
-        return ord(self.response(1, True)) & 0x1f
-
-    @property
-    def pins(self):
-        """ Get pins status
-        Returns
-        -------
-        byte
-            Current state of the pins
-            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
-        """
-        self.write(0x80 | self.pins_state & 0x7f)
-        self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, True)) & 0x7f
-        return self.pins_state
-
-    @pins.setter
-    def pins(self, pinlist=0):
-        """ Set pins to high or low
-
-        Notes
-        -----
-        The lower 7bits of the command byte control the Bus Pirate pins and peripherals.
-        Bitbang works like a player piano or bitmap. The Bus Pirate pins map to the bits in the command byte as follows:
-        1|POWER|PULLUP|AUX|MOSI|CLK|MISO|CS
-        The Bus pirate responds to each update with a byte in the same format that shows the current state of the pins.
-
-        Parameters
-        ----------
-        pinlist : byte
-            List of pins to be set high
-            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
-
-        """
-        self.pins_state = pinlist & 0x7f
-        self.write(0x80 | self.pins_state)
-        self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, True)) & 0x7f
-
-
-    _attempts_ = 0
     def recurse_end(self):
         self._attempts_ = 0
 
@@ -337,7 +230,6 @@ def send_stop_bit(self):
 def read_byte(self):
     """Reads a byte from the bus, returns the byte. You must ACK or NACK each
     byte manually.  NO ERROR CHECKING (obviously)"""
-    self.check_mode(not_bb)
     if self.mode == 'raw':
         self.write(0x06)
         return self.response(1, True)  # this was changed, before it didn't have the 'True' which means it
@@ -357,7 +249,7 @@ def bulk_trans(self, byte_count=1, byte_string=None):
     In modes other than I2C I think it returns whatever data it gets while
     sending, but this feature is untested.  PLEASE REPORT so that I can
     document it."""
-    self.check_mode(not_bb)
+#    self.check_mode(not_bb)
     if byte_string is None:
         pass
     self.write(0x10 | (byte_count - 1))

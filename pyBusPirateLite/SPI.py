@@ -42,9 +42,14 @@ CFG_CLK_EDGE = 0x02
 CFG_IDLE = 0x04
 CFG_PUSH_PULL = 0x08
 
+PIN_CS = 1
+PIN_AUX = 2
+PIN_PULLUP = 4
+PIN_POWER = 8
+
 
 class SPI(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1):
+    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
         """ Provide high-speed access to the Bus Pirate SPI hardware
 
         Parameters
@@ -59,7 +64,6 @@ class SPI(BBIO_base):
         Example
         -------
         >>> spi = SPI()
-        >>> spi.state = PIN_POWER | PIN_CS
         >>> spi.config(CFG_PUSH_PULL | CFG_IDLE)
         >>> spi.speed = '1MHz'
         >>> spi.cs = True
@@ -67,12 +71,16 @@ class SPI(BBIO_base):
         >>> spi.cs = False
         """
         super().__init__()
-        self.connect(portname, speed, timeout)
-        self.enter()
-        self.spi_config = None
+        if connect is True:       
+            self.connect(portname, speed, timeout)       
+            self.enter()
+        self._config = None
+        self._speed = None
+        self._cs = None
+        self._pins = None
 
     def enter(self):
-        """Enter raw SPI mode
+        """ Enter raw SPI mode
 
         Once in raw bitbang mode, send 0x01 to enter raw SPI mode. The Bus Pirate responds 'SPIx',
         where x is the raw SPI protocol version (currently 1). Get the version string at any time by sending 0x01 again.
@@ -89,8 +97,6 @@ class SPI(BBIO_base):
         self.timeout(self.minDelay * 10)
         if self.response(4) == "SPI1":
             self.mode = 'spi'
-            self.bp_port = 0b00  # two bit port
-            self.bp_config = 0b0000
             self.recurse_end()
             return
         self.recurse_flush(self.enter)
@@ -104,8 +110,36 @@ class SPI(BBIO_base):
         return self.response(4)
 
     @property
+    def pins(self):
+        return self._pins
+
+    @pins.setter
+    def pins(self, cfg):
+        """ Configure peripherals
+
+        Parameters
+        ----------
+        cfg: int
+            Pin configuration 0000wxyz
+            w=power, x=pull-ups, y=AUX, z=CS
+
+        Notes
+        -----
+        Enable (1) and disable (0) Bus Pirate peripherals and pins. Bit w enables the power supplies, bit x toggles
+        the on-board pull-up resistors, y sets the state of the auxiliary pin, and z sets the chip select pin.
+        Features not present in a specific hardware version are ignored. Bus Pirate responds 0x01 on success.
+
+        * CS pin always follows the current HiZ pin configuration.
+        * AUX is always a normal pin output (0=GND, 1=3.3volts).
+        """
+        self.write(0x40 | (cfg & 0x0f))
+        if self.response(1, True) != b'\x01':
+            raise ValueError("Could not set SPI pins")
+        self._pins = cfg
+
+    @property
     def config(self):
-        return self.spi_config
+        return self._config
 
     @config.setter
     def config(self, cfg):
@@ -123,7 +157,7 @@ class SPI(BBIO_base):
         ----------
         cfg : byte
                 CFG_SAMPLE: sample time (0 = middle)
-                CFG_CLK_EDGE: clock edge (1 = active to idle
+                CFG_CLK_EDGE: clock edge (1 = active to idle)
                 CFG_IDLE: clock idle phase (0 = low)
                 CFG_PUSH_PULL: pin output (0 = HiZ, 1 = push-pull)
 
@@ -137,10 +171,10 @@ class SPI(BBIO_base):
             If configuration could not be set
         """
         self.write(0x80 | cfg)
-        self.timeout(0.1)
-        if self.response(1, True) != '\x01':
+        self.timeout(self.minDelay)
+        if self.response(1, True) != b'\x01':
             raise ValueError("Could not set SPI configuration")
-        self.spi_config = cfg
+        self._config = cfg
 
     def transfer(self, txdata):
         """ Bulk SPI transfer, send/read 1-16 bytes
@@ -179,8 +213,10 @@ class SPI(BBIO_base):
         self.write(0x10 + length-1)
         for data in txdata:
             self.write(data)
-        if self.response(1, True) != '\x01':
+        if self.response(1, True) != b'\x01':
             raise ValueError("Could not transfer SPI data")
+        rxdata = self.response(length, True)
+        return rxdata
 
     def write_then_read(self, numtx, numrx, txdata, cs = True):
         """ Write then read
@@ -243,16 +279,17 @@ class SPI(BBIO_base):
         self.write(numrx & 0xff)
         for data in txdata:
             self.write(data)
-        if self.response(1, True) != '\x01':
+        if self.response(1, True) != b'\x01':
             raise ProtocolError("Error transmitting data")
 
     @property
     def cs(self):
+        """ Return chip select pin status """
         return self._cs
 
     @cs.setter
     def cs(self, value):
-        """
+        """ Set chip select pin
         Parameters
         ----------
         value: bool
@@ -267,37 +304,73 @@ class SPI(BBIO_base):
             self.write(0x02)
         else:
             self.write(0x03)
-        if self.response(1, True) != '\x01':
+        if self.response(1, True) != b'\x01':
             raise ProtocolError("CS could not be set")
         self._cs = value
 
+    @property
+    def speed(self):
+        return self._speed
 
-@property
-def speed(self):
-    return self.spi_speed
+    @speed.setter
+    def speed(self, frequency):
+        """ Set SPI bus speed
 
+        Parameters
+        ----------
+        frequency : str
+            SPI clock speed (30kHz, 125kHz, 250kHz, 1MHz, 2MHz, 2.6MHz, 4MHz, 8MHz)
 
-@speed.setter
-def speed(self, frequency):
-    """ Set SPI speed
+        Raises
+        ------
+        ProtocolError
+            If I2C speed could not be set
+        """
+        try:
+            clock = SPI_speed[frequency]
+        except KeyError:
+            raise ValueError('Clock speed not supported')
+        self.write(0x60 | clock)
 
-    Parameters
-    ----------
-    frequency : str
-        SPI clock speed (30kHz, 125kHz, 250kHz, 1MHz, 2MHz, 2.6MHz, 4MHz, 8MHz)
+        if self.response(1, True) != b'\x01':
+            raise ProtocolError('Could not set SPI speed')
+        self._speed = frequency
 
-    Raises
-    ------
-    ProtocolError
-        If I2C speed could not be set
-    """
-    try:
-        clock = SPI_speed[frequency]
-    except KeyError:
-        raise ValueError('Clock speed not supported')
-    self.write(0x60 | clock)
+    def sniffer(self, cs):
+        """ Sniff SPI traffic when CS low(10)/all(01) TODO
 
-    if self.response(1, True) != 0x01:
-        raise ProtocolError('Could not set SPI speed')
-    self.spi_speed = frequency
+        Parameters
+        ----------
+        cs : Bool
+            True: Capture when CS is low
+            False: Capture all
 
+        Notes
+        -----
+        0000 11XX
+        The SPI sniffer is implemented in hardware and should work up to 10MHz. It follows the configuration settings
+        you entered for SPI mode. The sniffer can read all traffic, or filter by the state of the CS pin.
+
+            [/] - CS enable/disable
+            xy - escape character (\\) precedes two byte values X (MOSI pin) and Y (MISO pin) (updated in v5.1)
+
+        Sniffed traffic is encoded according to the table above. The two data bytes are escaped with the '\' character
+        to help locate data in the stream.
+
+        Send the SPI sniffer command to start the sniffer, the Bus Pirate responds 0x01 then sniffed data starts to
+        flow. Send any byte to exit. Bus Pirate responds 0x01 on exit. (0x01 reply location was changed in v5.8)
+
+        If the sniffer can't keep with the SPI data, the MODE LED turns off and the sniff is aborted. (new in v5.1)
+
+        The sniffer follows the output clock edge and output polarity settings of the SPI mode, but not the input
+        sample phase.
+
+        More detailed notes on the SPI sniffer in the SPI user terminal documentation.
+        """
+        if cs is True:
+            cmd = 0x0e
+        else:
+            cmd = 0x0d
+        self.write(cmd)
+        if self.response(1, True) != b'\x01':
+            raise ProtocolError('Could not set SPI sniff mode')
