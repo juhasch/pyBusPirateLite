@@ -84,22 +84,29 @@ class BBIO_base:
             raise IOError('Device not connected')
         self.timeout(self.minDelay * 10)
         self.port.flushInput()
-        for i in range(20):
+
+        for i in range(10):
             self.write(0x00)
             r = self.response(1, True)
             if r:
                 break
+            for i in range(2):
+                 self.write(0x00)
+
+        self.timeout(self.minDelay * 10)
         self.port.flushInput()
+        self.timeout(self.minDelay * 10)
+        resp = self.response(200)
         self.write(0x00)
-        if self.response(5) == "BBIO1":
+        resp =  self.response(5)
+#        print('RESP:', resp)
+        if resp == "BBIO1":
             self.mode = 'bb'
             self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
             self.bp_port = 0x00  # out_port similar to ports in microcontrollers
             self.bp_dir = 0x1F  # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
-            self.recurse_end()
             self.port.flushInput()
-            return
-        self.recurse_flush(self.enter)
+            return True
         raise BPError('Could not enter bitbang mode')
 
 
@@ -111,11 +118,11 @@ class BBIO_base:
         and the Bus Pirate returns to the user terminal interface. Send 0x00 20 times to enter binary mode again.
         """
         self.write(0x0f)
-        self.port.reset_input_buffer()
+        self.port.flushInput()
         self.timeout(.1)
         self.mode = None
 
-    def connect(self, portname='', speed=115200, timeout=1):
+    def connect(self, portname='', speed=115200, timeout=0.1):
         """ will try to automatically find a port regardless of os
 
         Parameters
@@ -197,7 +204,7 @@ class BBIO_base:
             self._attempts_ += 1
             for n in range(5):
                 self.write(0x00)
-            self.port.flushInput()
+                self.port.flushInput()
             return function(*args)
         raise IOError('bus pirate malfunctioning')
 

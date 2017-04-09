@@ -49,7 +49,7 @@ PIN_POWER = 8
 
 
 class SPI(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide high-speed access to the Bus Pirate SPI hardware
 
         Parameters
@@ -93,13 +93,13 @@ class SPI(BBIO_base):
         """
         if self.mode == 'spi':
             return
+        if self.mode != 'bb':
+           super(SPI, self).enter()
+
         self.write(0x01)
-        self.timeout(self.minDelay * 10)
         if self.response(4) == "SPI1":
             self.mode = 'spi'
-            self.recurse_end()
             return
-        self.recurse_flush(self.enter)
         raise BPError('Could not enter SPI mode')
 
     @property
