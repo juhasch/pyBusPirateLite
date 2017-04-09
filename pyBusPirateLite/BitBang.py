@@ -21,208 +21,144 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import select
 import serial
-import sys
 
-from .BBIO_base import *
+from .BBIO_base import BBIO_base, BPError, ProtocolError
 
-"""
-PICSPEED = 24MHZ / 16MIPS
-"""
+class BitBang(BBIO_base):
+    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
+        """ Provide access to the Bus Pirate bitbang mode
 
-"""pinout_uc prior to translating be careful, you have to translate this
-when you use it!!! (only wory about this if you are developing code for the editing
-this class)"""
-pinout_bb = {'AUX':     0b10000,
-             'MOSI':    0b01000,
-             'CLK':     0b00100,
-             'MISO':    0b00010,
-             'CS':      0b00001}
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
 
-def translator(byte, translate):
-    """translates a byte so that the pinout is more user friendly (for the standard connector
-    orientation)"""
-    if translate:
-        """maps AUX|MOSI|CLK|MISO|CS to AUX|CLK|MOSI|CS|MISO"""
-        if byte > 255:
-            raise ValueError('Value Too Large')
-        return (byte & 0b11110000) | ((byte & 0b0101) << 1) | ((byte & 0b1010) >> 1)
-    else:
-        return byte
+        Example
+        -------
+        >>> bb = BitBang()
+        """
+        super().__init__()
+        if connect is True:
+            self.connect(portname, speed, timeout)
+            self.enter()
 
-"""if transltor (self.t) is True then pinout is AUX|CLK|MOSI|CS|MISO
-   if translator is False then:                 AUX|MOSI|CLK|MISO|CS
-   The first is much more user friendly, the second is the order the 
-   bus pirate uses (and expects)
-   the values in self.uc_port and self.uc_dir are the values you **want**,
-   i.e. if you have translate on then they will read AUX|CLK|MOSI|CS|MISO
-"""
-class BBIO(BBIO_base):
-    def __init__(self):
-        self.connected = False
-        self.mode = None
-        self.t = True
+    @property
+    def outputs(self):
+        """
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
 
-    def connect(self, port = "/dev/bus_pirate", speed = 115200, timeout = 1):
-        """ will try to automatically find a port regarless of os (to be added)"""
-        try:
-            self.port = serial.Serial(port, speed, timeout=timeout)
-        except serial.serialutil.SerialException:
-            raise IOError('Could not open port %s' % port)
-        self.connected = True
-        self.minDelay = 1 / speed
+        """
 
-    _attempts_ = 0   # global stored for use in enter_bb
-    def enter_bb(self):
-        """this is the be-all-end-all restart function.  It will keep trying
-        to get the bus pirate into bit bang mode even if it is stuck.  Call this
-        to get the bus pirate into a known state (bb mode)"""
-        if self.connected is not True:
-            return 0 # still need to connect to port
-        self.port.flushInput()
-        for i in range(20):
-            self.write(0x00)
-            r = self.response(1, True)
-            if r:
-                break
-        self.port.flushInput()
-        self.write(0x00)
-        if self.response(5, True) == "BBIO1":
-            self.mode = 'bb'
-            self.bp_config = 0x00      # configuration bits determine action of power sources and pullups
-            self.bp_port = 0x00        # out_port similar to ports in microcontrollers
-            self.bp_dir = 0x1F         # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
-            self.recurse_end()
-            return 1
-        return self.recurse_flush(self.enter_bb)
-
-    """calls to be used only in bit bang mode"""
-    def enter_spi(self):
-        self.check_mode('bb')
-        self.write(0x01)
+        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
         self.timeout(self.minDelay * 10)
-        if self.response(4) == "SPI1":
-            self.mode = 'spi'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self.recurse_end()
-            return 1
-        return self.recurse_flush(self.enter_spi)
+        return ord(self.response(1, True)) & 0x1f
 
-    def enter_i2c(self):
-        self.check_mode('bb')
-        self.write(0x02)
+    @outputs.setter
+    def outputs(self, pinlist=0):
+        """ Configure pins as input our output
+
+        Notes
+        -----
+        The Bus pirate responds to each direction update with a byte showing the current state of the pins, regardless
+        of direction. This is useful for open collector I/O modes. Used in every mode to configure pins.
+        In bb it configures as either input or output, in the other modes it normally configures peripherals such as
+        power supply and the aux pin
+
+        Parameters
+        ----------
+        pinlist : byte
+            List of pins to be set as outputs (default: all inputs)
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+        """
+        self.pins_direction = pinlist & 0x1f
+        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
         self.timeout(self.minDelay * 10)
-        if self.response(4) == "I2C1":
-            self.mode = 'i2c'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self.recurse_end()
-            return 1
-        return self.recurse_flush(self.enter_i2c)
+        self.response(1, True)
 
-    def enter_uart(self):
-        self.check_mode('bb')
-        self.write(0x03)
+    @property
+    def pins(self):
+        """ Get pins status
+        Returns
+        -------
+        byte
+            Current state of the pins
+            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+        """
+        self.write(0x80 | (self.pins_state & 0x7f))
         self.timeout(self.minDelay * 10)
-        if self.response(4) == "ART1":
-            self.mode = 'uart'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self.recurse_end()
-            return 1
-        return self.recurse_flush(self.enter_uart)
+        self.pins_state = ord(self.response(1, True)) & 0x7f
+        return self.pins_state
 
-    def enter_1wire(self):
-        self.check_mode('bb')
-        self.write(0x04)
+    @pins.setter
+    def pins(self, pinlist=0):
+        """ Set pins to high or low
+
+        Notes
+        -----
+        The lower 7bits of the command byte control the Bus Pirate pins and peripherals.
+        Bitbang works like a player piano or bitmap. The Bus Pirate pins map to the bits in the command byte as follows:
+        1|POWER|PULLUP|AUX|MOSI|CLK|MISO|CS
+        The Bus pirate responds to each update with a byte in the same format that shows the current state of the pins.
+
+        Parameters
+        ----------
+        pinlist : byte
+            List of pins to be set high
+            PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
+
+        """
+        self.pins_state = pinlist & 0x7f
+        self.write(0x80 | self.pins_state)
         self.timeout(self.minDelay * 10)
-        if self.response(4) == "1W01":
-            self.mode = '1wire'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self._attempts_ = 1
-            return 1
-        return self.recurse_flush(self.enter_1wire)
+        self.pins_state = ord(self.response(1, True)) & 0x7f
 
-    def enter_rawwire(self):
-        self.check_mode('bb')
-        self.write(0x05)
-        self.timeout(self.minDelay * 10)
-        if self.response(4) == "RAW1":
-            self.mode = 'raw'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self.recurse_end()
-            return 1
-        return self.recurse_flush(self.enter_rawwire)
+    @property
+    def adc(self):
+        """Returns the voltage from ADC pin
 
-    def set_pwm_frequency(self, frequency, DutyCycle=.5):
-        """set pwm frequency and duty cycle.  Stolen from http://codepad.org/qtYpZmIF"""
-        if DutyCycle > 1:
-            raise ValueError('Duty cycle should be between 0 and 1')
-        Fosc = 32e6
-        Tcy = 2.0 / Fosc
-        PwmPeriod = 1.0 / frequency
-
-        # find needed prescaler
-        PrescalerList = {0:1, 1:8 , 2:64, 3:256}
-
-        for n in range(4):
-            Prescaler = PrescalerList[n]
-            PRy = PwmPeriod * 1.0 / (Tcy * Prescaler)
-            PRy = int(PRy - 1)
-            OCR = int(PRy * DutyCycle)
-
-            if PRy < (2 ** 16 - 1):
-                break # valid value for PRy, keep values
-        else:
-            raise ValueError('frequency requested is invalid')
-
-        if self.setup_PWM(prescaler = Prescaler, dutycycle = OCR, period = PRy):
-            self.recurse_end()
-            return 1
-        return self.recurse(self.set_pwm_frequency, frequency, DutyCycle)
-
-    def clear_pwm(self):
-        self.check_mode('bb')
-        self.write(0x13)
-        self.timeout(self.minDelay * 10)
-        if self.response(1, True) == 'x01':
-            self.recurse_end()
-            return 1
-        return self.recurse(self.clear_pwm)
-
-    def get_adc_voltage(self):
-        """returns the voltage rather than a binary value.  Expect future
-        versions to have error checking (need firmware upgrade)"""
-        voltage = self.ADC_measure()
-        voltage = (ord(voltage[0]) << 8) + ord(voltage[1])
+        Returns
+        -------
+        float
+            Voltage measured at ADC pin
+        """
+        self.write(0x14)
+        self.timeout(self.minDelay)
+        ret = self.response(2, True)
+        print('0: %d, 1: %d' % (ret[0], ret[1]))
+        voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
         return voltage
 
     def start_getting_adc_voltages(self):
-        """start continuously getting adc voltages.  use memberfunction enter_bb to exit,
-        use get_next_adc_voltage to get the next one."""
-        self.check_mode('bb')
+        """Start continuously getting adc voltages.
+
+        Notes
+        -----
+        use memberfunction enter_bb to exit,
+        use get_next_adc_voltage to get the next one.
+        """
         self.write(0x15)
-        self.timeout(self.minDelay)
-        self.mode = 'adc'
-        voltage = self.response(2, True)
-        voltage = (ord(voltage[0]) << 8) + ord(voltage[1])
-        voltage = (voltage * 6.6) / 1024
-        return voltage
 
     def get_next_adc_voltage(self):
-        self.check_mode('adc')
-        voltage = self.response(2, True)
-        voltage = (ord(voltage[0]) << 8) + ord(voltage[1])
-
-        temp_voltage = voltage
-
-        #voltage = (ord(voltage[0]) << 8) + ord(voltage[1])
+        ret = self.response(2, True)
+        voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
+#        return voltage
 
         if voltage < 10:
             """sometimes the input gets out of sync.  This is the best error checking
@@ -231,7 +167,7 @@ class BBIO(BBIO_base):
             self.recurse_end()
             return voltage
 
-        self.response(1)        # get an additional byte and then flush
+        self.response(1, True)        # get an additional byte and then flush
         self.port.flushInput()
         return self.recurse(self.get_next_adc_voltage)
 
@@ -239,7 +175,7 @@ class BBIO(BBIO_base):
         """I was encountering problems resetting out of adc mode, so I wrote this
         little function"""
         self.check_mode('adc')
-        self.port.flushInput();
+        self.port.flushInput()
         for i in range(5):
             self.write(0x00)
             #r, w, e = select.select([self.port], [], [], 0.01);
@@ -249,221 +185,98 @@ class BBIO(BBIO_base):
         self.enter_bb()
         return 1
 
-    """ Higher level functions.  Allows control of the BP port as if it were a microcontroller"""
-    def set_port(self, byte):
-        """sets the port bits as determined by the translator (self.t)."""
-        self.check_mode('bb')
-        self.bp_port = byte & 0x1F
+    def selftest(self, complete=False):
+        """ Self test
 
-        if ord(self.set_pins_bb(translator(self.bp_config  # check config bits too
-            | self.bp_port, self.t))) & 0b11100000 == 0x80 | self.bp_config:
-            self.recurse_end()
-            return 1
-        return self.recurse(self.set_port, byte)
+        Parameters
+        ----------
+        complete: bool
+            Requires jumpers between +5 and Vpu, +3.3 and ADC
 
-    def read_port(self):
-        """reads the port.  Will return a number (as opposed to a string).  Returns None
-        if there is an error"""
-        self.check_mode(['bb'])
-        out = ord(self.set_pins_bb(translator(self.bp_config | self.bp_port, self.t)))
+        Notes
+        -----
+        Self-tests are access from the binary bitbang mode. There are actually two self-tests available. T
+        he full test is the same as self-test in the user terminal, it requires jumpers between two sets of pins
+        in order to test some features. The short test eliminates the six checks that require jumpers.
 
-        if out & 0b11100000 == 0x80 | self.bp_config:   #check config bits too
-            self.recurse_end()
-            return translator(0x1F & out, self.t)
-        return self.recurse(self.read_port)
+        After the test is complete, the Bus Pirate responds with the number of errors. It also echoes any input plus
+        the number of errors. The MODE LED blinks if the test was successful, or remains solid if there were errors.
+        Exit the self-test by sending 0xff, the Bus Pirate will respond 0x01 and return to binary bitbang mode.
 
-    def read_pin(self, pin):
-        """Gets the data at the pin.  Only works in bit bang mode"""
-        self.check_mode('bb')
-        pin = pin.upper()
-        out = self.read_port()
-        if out is None: return None
-        out = translator(pinout_bb[pin], self.t) & out
-        return bool(out)
-
-    def set_dir(self, pins):
-        """sets pins as either input (1) or output (0).  Only for bb mode """
-        self.check_mode('bb')
-        self.bp_dir = pins & 0x1F   # filter
-
-        if ord(self.cfg_pins(translator(self.bp_dir, self.t))) & 0b11100000 == 0b01000000:
-            self.recurse_end()
-            return 1
-        return self.recurse(self.set_dir, pins)
-
-    def set_pin_dir(self, pin, direction):
-        """sets the pin direction.  Only works in bit bang mode"""
-        self.check_mode('bb')
-        pin = pin.upper()
-        if direction is ('out' or 'Out' or 'OUT' or 0):
-            self.bp_dir &= ~translator(pinout_bb[pin], self.t)
-        elif direction is ('in' or 'In' or 'IN' or 1):
-            self.bp_dir |= translator(0x1F & pinout_bb[pin], self.t)
+        Returns
+        -------
+        int
+            Number of errors
+        """
+        if complete is True:
+            self.write(0x11)
         else:
-            raise ValueError('incorrect value for direction')
-        return self.set_dir(self.bp_dir)
+            self.write(0x10)
+        self.timeout(self.minDelay * 50)
+        errors = self.response(1)
+        self.write(0xff)
+        if self.response(1) != '\x01':
+            raise ProtocolError('Self test did not return to bitbang mode')
+        return ord(errors)
 
-    """ Higher level commands that can be used in ANY mode"""
-    def configure_peripherals(self, power = None, pullups = None):
-        """sets configuration settings of peripherals.  Use set_pin and clear_pin to
-        adjust pins.  Can be used in ANY mode"""
-        if self.mode == 'bb':
-            if power is not None:
-                if (power.upper() == 'YES') or (power.upper() == 'ON'):
-                    self.bp_config |= 0b01000000
-                elif (power.upper() == 'NO') or (power.upper() == 'OFF'):
-                    self.bp_config &= 0b10111111
-                else: raise ValueError('incorrect value given for power')
-            if pullups is not None:
-                if (pullups.upper() == 'YES') or (pullups.upper() == 'ON'):
-                    self.bp_config |= 0b00100000
-                elif (pullups.upper() == 'NO') or (pullups.upper() == 'OFF'):
-                    self.bp_config &= 0b11011111
-                else:
-                    raise ValueError('incorrect value given for pullups')
-            check = ( #returns the whole port back so we filter
-                0b11100000 & (translator(ord(self.set_pins_bb(
-                translator(self.bp_config | self.bp_port, self.t))) , self.t)))
-            if check == 0x80 | self.bp_config:
-                self.recurse_end()
-                return 1
+    def enable_PWM(self, frequency, dutycycle=.5):
+        """ Enable PWM output 
+
+        Parameters
+        ----------
+        frequency: float
+            PWM frequency in Hz
+        dutycycle: float
+            Duty cycle between 0 (0%) and 1 (100%)
+
+        Notes
+        -----
+        Configure and enable pulse-width modulation output in the AUX pin. Requires a 5 byte configuration sequence.
+        Responds 0x01 after a complete sequence is received. The PWM remains active after leaving binary bitbang mode!
+        Equations to calculate the PWM frequency and period are in the PIC24F output compare manual.
+        Bit 0 and 1 of the first configuration byte set the prescaler value. The Next two bytes set the duty cycle
+        register, high 8bits first. The final two bytes set the period register, high 8bits first.
+        
+        Parameter calculation stolen from http://codepad.org/qtYpZmIF
+
+        """
+        if dutycycle > 1:
+            raise ValueError('Duty cycle should be between 0 and 1')
+        Fosc = 24e6
+        Tcy = 2.0 / Fosc
+        PwmPeriod = 1.0 / frequency
+
+        # find needed prescaler
+        PrescalerList = {0: 1, 1: 8, 2: 64, 3: 256}
+
+        for n in range(4):
+            Prescaler = PrescalerList[n]
+            PRy = PwmPeriod * 1.0 / (Tcy * Prescaler)
+            PRy = int(PRy - 1)
+            OCR = int(PRy * dutycycle)
+
+            if PRy < (2 ** 16 - 1):
+                break  # valid value for PRy, keep values
         else:
-            self.check_mode(not_bb)
-            if power is not None:
-                if (power.upper() == 'YES') or (power.upper() == 'ON'):
-                    self.bp_config |= 0b1000
-                elif (power.upper() == 'NO') or (power.upper() == 'OFF'):
-                    self.bp_config &= 0b0111
-            else:
-                raise ValueError('incorrect value given for i2c_dir')
-            if pullups is not None:
-                if (pullups.upper() == 'YES') or (pullups.upper() == 'ON'):
-                    self.bp_config |= 0b0100
-                elif (pullups.upper() == 'NO') or (pullups.upper() == 'OFF'):
-                    self.bp_config &= 0b1011
-            else:
-                raise ValueError('incorrect value given for i2c_dir')
-            if self.cfg_pins(self.bp_config | self.bp_port):
-                self.recurse_end()
-                return 1
-        return self.recurse(self.configure_peripherals, power, pullups)
+            raise ValueError('frequency requested is invalid')
 
-    def get_peripheral_configuration(self):
-        """more of a placeholder than anything right now"""
-        if self.mode == 'bb':
-            return 0b01100000 & self.bp_config
-        else:
-            self.check_mode(not_bb)
-            return 0b1100 & self.bp_config
+        prescaler=Prescaler
+        dutycycle=OCR
+        period=PRy
 
-    def set_pin(self, pin):
-        """sets the pin.  needs more testing for non-bb modes, but works in i2c
-        and bb modes"""
-        self.check_mode(all_modes)
-        if self.mode == 'bb':
-            pin = pin.upper()
-            self.bp_port |= translator(pinout_bb[pin], self.t)
-            return self.set_port(self.bp_port)
-        else:
-            """this code works very strangely, it seems that
-            CS and AUX work differently.  Needs more testing
-            I think that CS = 1 makes it input (sinks and goes
-            low) and CS = 0 makes it output (so it goes high
-            w/ pullup)."""
-            pin = pin.upper()
-            if pin == 'CS':
-                self.bp_port |= 0b01
-            elif pin == 'AUX':
-                self.bp_port &= ~0b10
-            else: raise ValueError('wrong value')
-        self.cfg_pins(self.bp_config | self.bp_port)
-
-    def clear_pin(self, pin):
-        """clears the pin, needs more testing for non-bb modes"""
-        self.check_mode(all_modes)
-        if self.mode == 'bb':
-            pin = pin.upper()
-            #print 'internal port', bin(self.bp_port); #print 'bp port', bin(self.read_port_bb())
-            self.bp_port &= ~translator(pinout_bb[pin], self.t)
-            #print 'and now internal port', bin(self.bp_port)
-            return self.set_port(self.bp_port)
-        else:
-            """this code works very strangely, it seems that
-            CS and AUX work differently.  Needs more testing
-            I think that CS = 1 makes it input (sinks and goes
-            low) and CS = 0 makes it output (so it goes high
-            w/ pullup)."""
-            pin = pin.upper()
-            if pin == 'CS':
-                self.bp_port &= ~0b01
-            elif pin == 'AUX':
-                self.bp_port |= 0b10
-            else: raise ValueError('wrong value')
-        self.cfg_pins(self.bp_config | self.bp_port)
-
-    """ General Commands for Higher-Level Modes.
-    Note: Some of these do not have error checking implemented
-    (they return a 0 or 1.  You have to do your own error
-    checking.  This is as planned, since all of these
-    depend on the device you are interfacing with)"""
-
-    def set_speed(self, speed=0):
-        """sets the speed of communication.  Used in every extra mode (not bb)"""
-        self.check_mode(not_bb)
-        self.write(0x60 | speed)
+        self.write(0x12)
+        self.write(prescaler)
+        self.write((dutycycle >> 8) & 0xFF)
+        self.write(dutycycle & 0xFF)
+        self.write((period >> 8) & 0xFF)
+        self.write(period & 0xFF)
         self.timeout(self.minDelay * 10)
-        if self.response(1, True) == '\x01':
-            self.recurse_end()
-            return 1
-        return self.recurse(self.set_speed, speed)
+        if self.response(1, True) != '\x01':
+            raise ValueError("Could not setup PWM mode")
 
-    def send_start_bit(self):
-        self.check_mode(['i2c', 'raw'])
-        self.write(0x02)
-        resp = self.response(1, True)
-        if self.response(1, True) == '\x01':
-            self.recurse_end()
-            return 1
-        return self.recurse(self.send_start_bit)
-
-    def send_stop_bit(self):
-        self.check_mode(['i2c', 'raw'])
-        self.write(0x03)
-        if self.response(1, True) == 'x01':
-            self.recurse_end()
-            return 1
-        return self.recurse(self.send_stop_bit)
-
-    def read_byte(self):
-        """Reads a byte from the bus, returns the byte. You must ACK or NACK each
-        byte manually.  NO ERROR CHECKING (obviously)"""
-        self.check_mode(not_bb)
-        if self.mode == 'raw':
-            self.write(0x06)
-            return self.response(1, True) #this was changed, before it didn't have the 'True' which means it
-                                          # would have never returned any real data!
-        else:
-            self.write(0x04)
-            return self.response(1, True)
-
-    def bulk_trans(self, byte_count=1, byte_string=None):
-        """this is how you send data in most of the communication modes.
-        See the i2c example function in common_functions.
-        Send the data, and read the returned array.
-        In I2C:  A '1' means that it was NOT ACKNOWLEDGED, and a '0' means that
-        it WAS ACKNOWLEDGED (the reason for this is because this is what the
-        bus pirate itself does...)
-        In modes other than I2C I think it returns whatever data it gets while
-        sending, but this feature is untested.  PLEASE REPORT so that I can
-        document it."""
-        self.check_mode(not_bb)
-        if byte_string is None:
-            pass
-        self.write(0x10 | (byte_count - 1))
-        for i in range(byte_count):
-            self.write(byte_string[i])
-        data = self.response(byte_count + 1, True)
-        if ord(data[0]) == 1:  # bus pirate sent an acknolwedge properly
-            self.recurse_end()
-            return data[1:]
-        self.recurse(self.bulk_trans, byte_count, byte_string)
+    def disable_PWM(self):
+        """ Clear/disable PWM """
+        self.write(0x13)
+        self.timeout(self.minDelay * 10)
+        if self.response(1, True) != '\x01':
+            raise ValueError("Could not disable PWM mode")

@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .BitBang import BBIO
+from .BitBang import BitBang
 
 
 class RawWireCfg:
@@ -31,7 +31,27 @@ class RawWireCfg:
     OUTPUT = 0x08
 
 
-class RawWire(BBIO):
+class RawWire(BBIO_base):
+    def enter(self):
+        """Enter raw wire mode
+
+        Raw-wire binary mode provides access to the Bus Pirate's raw 2- and 3-wire libraries.
+        This new mode will make it easier to script operations on arbitrary serial protocols
+        used by devices like smart cards, shift registers, etc.
+        """
+        if self.mode == 'raw':
+            return
+        self.reset()
+        self.write(0x05)
+        self.timeout(self.minDelay * 10)
+        if self.response(4) == "RAW1":
+            self.mode = 'raw'
+            self.bp_port = 0b00  # two bit port
+            self.bp_config = 0b0000
+            self.recurse_end()
+            return 1
+        return self.recurse_flush(self.enter_rawwire)
+
     def start_bit(self):
         """is kept in because it was in for legacy code,
         I recommend you use send_start_bit"""

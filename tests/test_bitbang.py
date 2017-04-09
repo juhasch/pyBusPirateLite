@@ -1,22 +1,44 @@
-#! /usr/bin/env python
 # -*- coding: utf-8 -*-
-from pyBusPirateLite.common_functions import init_bus_pirate
+from pyBusPirateLite.BitBang import BitBang
+
 
 def test_init():
-    bp_device = init_bus_pirate('bb')
-   if not bp_device:
-      print 'cant connect'
-      sys.exit()
-   print 'connected'
+    bb = BitBang(connect=False)
+    assert bb.portname == ''
 
-   #port_test(bp_device, 0b00001)
-   #pin_test(bp_device, 'miso')
-   integrity_test(bp_device)
+    
+def test_connect():
+    bb = BitBang(connect=False)
+    bb.connect()
+    assert bb.portname != ''
 
-   raw_input('press enter to exit')
-   #leave
-   if bp_device.resetBP():
-      print "Exited successfully"
-   else:
-      print "failed exit."
-      sys.exit()
+    
+def test_enter():
+    bb = BitBang(connect=False)
+    bb.connect()
+    bb.enter()
+    assert bb.mode == 'bb'
+
+    
+def test_connect_on_init():
+    bb = BitBang()
+    assert bb.mode == 'bb'
+    
+    
+def test_adc():
+    bb = BitBang()
+    value = bb.adc
+    print(value)
+    assert 0.0 <= value <= 5.0
+
+    
+def test_selftest():
+    bb = BitBang()
+    errors = bb.selftest()
+    assert errors == 0
+
+    
+def test_selftest_complete():
+    bb = BitBang()
+    errors = bb.selftest(complete=True)
+    assert errors == 6

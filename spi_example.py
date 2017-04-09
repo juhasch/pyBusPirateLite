@@ -11,6 +11,8 @@ spi.speed = '1MHz'
 
 # send two bytes and receive answer
 spi.cs = True
-data = spi.transfer([0x82, 0x55])
+data = spi.transfer( [0x82, 0x55])
 spi.cs = False
-spi.pins = PIN_CS # turn off power
+spi.pins = PIN_CS
+
+
