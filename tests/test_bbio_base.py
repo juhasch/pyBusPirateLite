@@ -11,6 +11,7 @@ def test_outputs():
     bb = BitBang()
     bb.outputs
     bb.disconnect()
+    bb.hw_reset()
 
 
 def test_pins_CS():
@@ -25,6 +26,7 @@ def test_pins_CS():
     sleep(0.2)
     assert bb.outputs == PIN_CS
     assert bb.pins == PIN_CS
+    bb.hw_reset()
 
 
 def test_pins_MISO():
@@ -39,6 +41,7 @@ def test_pins_MISO():
     sleep(0.2)
     assert bb.outputs == PIN_MISO
     assert bb.pins == PIN_MISO
+    bb.hw_reset()
 
 
 def test_pins_MOSI():
@@ -53,6 +56,7 @@ def test_pins_MOSI():
     sleep(0.2)
     assert bb.outputs == PIN_MOSI
     assert bb.pins == PIN_MOSI
+    bb.hw_reset()
 
 
 def test_pins_CLK():
@@ -67,6 +71,7 @@ def test_pins_CLK():
     sleep(0.2)
     assert bb.outputs == PIN_CLK
     assert bb.pins == PIN_CLK
+    bb.hw_reset()
 
 
 def test_pins_AUX():
@@ -81,3 +86,4 @@ def test_pins_AUX():
     bb.pins = PIN_AUX
     assert bb.outputs == PIN_AUX
     assert bb.pins == PIN_AUX
+    bb.hw_reset()

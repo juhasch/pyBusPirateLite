@@ -60,6 +60,8 @@ class SPI(BBIO_base):
             Communication speed, use default of 115200
         timeout : int
             Timeout in s to wait for reply
+        connect : bool
+            Automatically connect to BusPirate (default) 
 
         Example
         -------

@@ -26,7 +26,7 @@ import serial
 from .BBIO_base import BBIO_base, BPError, ProtocolError
 
 class BitBang(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide access to the Bus Pirate bitbang mode
 
         Parameters
@@ -37,6 +37,8 @@ class BitBang(BBIO_base):
             Communication speed, use default of 115200
         timeout : int
             Timeout in s to wait for reply
+        connect : bool
+            Automatically connect to BusPirate (default) 
 
         Example
         -------
