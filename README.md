@@ -1,5 +1,6 @@
 # pyBusPirateLite
-Python library for BusPirate based on code from Garrett Berg. It tries to be more Pythonic than the original code.
+Python library for BusPirate based on code from Garrett Berg. 
+It tries to be more Pythonic than the original code.
 
 This library allows using the following modes:
 * SPI
@@ -31,8 +32,24 @@ Based on code from Garrett Berg <cloudform511@gmail.com>
     data = spi.transfer( [0x82, 0x00])
     spi.cs = False
 
-### I2C
+![SPI example](spi-example.png)
 
+### Bitbang
+
+    from pyBusPirateLite.BitBang import BitBang
+    bb = BitBang()
+    bb.outputs = PIN_AUX
+    bb.pins = 0        # set aux pin = 0
+
+    bb.pins = PIN_AUX  # set aux pin = 1
+
+### Automatically detect port
+    from pyBusPirateLite.BitBang import BitBang
+    bb = BitBang(connect=False)
+    port = bb.get_port()
+    print(port)
+
+### I2C
     from pyBusPirateLite.SPI import *
 
     i2c = I2C()

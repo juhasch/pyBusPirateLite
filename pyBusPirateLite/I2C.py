@@ -35,7 +35,7 @@ pin_mapping = {'AUX':   0b10,
 
 
 class I2C(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1, connect=True):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide access to the Bus Pirate I2C interface
 
         Parameters
@@ -71,6 +71,8 @@ class I2C(BBIO_base):
         """
         if self.mode == 'i2c':
             return
+        if self.mode != 'bb':
+            super(I2C, self).enter()
         self.write(0x02)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "I2C1":

@@ -49,7 +49,7 @@ class UARTSpeed:
 
 
 class UART(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=1):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide the Bus Pirate UART interface
 
         Parameters
@@ -60,14 +60,17 @@ class UART(BBIO_base):
             Communication speed, use default of 115200
         timeout : int
             Timeout in s to wait for reply
+        connect : bool
+            Automatically connect to BusPirate (default) 
 
         Example
         -------
         >>> spi = UART()
         """
         super().__init__()
-        self.connect(portname, speed, timeout)
-        self.enter()
+        if connect is True:
+            self.connect(portname, speed, timeout)
+            self.enter()
         self._config = None
         self._echo = False
 
@@ -81,6 +84,8 @@ class UART(BBIO_base):
         """
         if self.mode == 'uart':
             return
+        if self.mode != 'bb':
+            super(UART, self).enter()
         self.write(0x03)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "ART1":

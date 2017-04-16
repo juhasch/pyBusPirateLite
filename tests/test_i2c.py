@@ -10,6 +10,7 @@ def test_connect():
     i2c = I2C(connect=False)
     i2c.connect()
     assert i2c.portname != ''
+    i2c.hw_reset()
 
 
 def test_enter():
@@ -22,11 +23,6 @@ def test_enter():
 def test_connect_on_init():
     i2c = I2C()
     assert i2c.mode == 'i2c'
-
-
-def test_modestring():
-    i2c = I2C()
-    assert i2c.modestring == 'I2C1'
 
 
 def test_echo():

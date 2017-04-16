@@ -55,7 +55,7 @@ class BBIO_base:
 
     _attempts_ = 0  # global stored for use in enter
 
-    def enter(self):
+    def enter_bb(self):
         """Enter bitbang mode
 
         This is the be-all-end-all restart function.  It will keep trying
@@ -78,13 +78,10 @@ class BBIO_base:
         IOError
             If device is not connected
         """
-        if self.mode == 'bb':
-            return
         if self.connected is not True:
             raise IOError('Device not connected')
         self.timeout(self.minDelay * 10)
         self.port.flushInput()
-
         for i in range(10):
             self.write(0x00)
             r = self.response(1, True)
@@ -99,7 +96,6 @@ class BBIO_base:
         resp = self.response(200)
         self.write(0x00)
         resp =  self.response(5)
-#        print('RESP:', resp)
         if resp == "BBIO1":
             self.mode = 'bb'
             self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
@@ -109,6 +105,13 @@ class BBIO_base:
             return True
         raise BPError('Could not enter bitbang mode')
 
+    def enter(self):
+        """Enter bitbang mode
+           Will be overriden by other classes 
+        """
+        if self.mode == 'bb':
+            return
+        return self.enter_bb()
 
     def hw_reset(self):
         """Reset Bus Pirate
@@ -117,10 +120,40 @@ class BBIO_base:
         The hardware and firmware version is printed (same as the 'i' command in the terminal),
         and the Bus Pirate returns to the user terminal interface. Send 0x00 20 times to enter binary mode again.
         """
+        if self.mode != 'bb':
+            self.enter_bb()
         self.write(0x0f)
         self.port.flushInput()
         self.timeout(.1)
         self.mode = None
+
+    def get_port(self):
+        """Detect Buspirate and return first detected port
+        
+        Returns
+        -------
+        str
+            First valid portname
+        """
+        try:
+            import serial.tools.list_ports as list_ports
+        except ImportError:
+            raise ImportError('Pyserial version with serial.tools.list_port required')
+
+        import serial
+
+        # the API in version 2 and 3 is different
+        if serial.VERSION[0] == '2':
+            ports = list_ports.comports()
+            for port in ports:
+                if len(port) == 3 and '0403:6001' in port[2]:
+                    return port[0]
+        else:
+            ports = list_ports.comports()
+            for port in ports:
+                if hasattr(port, 'pid') and hasattr(port, 'vid'):
+                    if port.vid == 1027 and port.pid == 24577:
+                        return port.name
 
     def connect(self, portname='', speed=115200, timeout=0.1):
         """ will try to automatically find a port regardless of os
@@ -142,18 +175,9 @@ class BBIO_base:
             If device could not be opened
         """
 
-        try:
-            import serial.tools.list_ports as list_ports
-        except ImportError:
-            raise ImportError('Pyserial version with serial.tools.list_port required (> 3.0')
-
         if portname == '':
-            ports = list_ports.comports()
-            for port in ports:
-                if hasattr(port, 'pid') and hasattr(port, 'vid'):
-                    if port.vid == 1027 and port.pid == 24577:
-                        portname = port.device
-                        break
+            portname = self.get_port()
+
         self.portname = portname
         try:
             self.port = serial.Serial(portname, speed, timeout=timeout)
@@ -171,7 +195,6 @@ class BBIO_base:
         sleep(timeout)
 
     def write(self, value):
-#        print('val %s' % value.to_bytes(1, 'big'))
         self.port.write(value.to_bytes(1, 'big'))
         
     def response(self, byte_count=1, binary=False):

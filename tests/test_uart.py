@@ -9,7 +9,8 @@ def test_init():
 def test_connect():
     uart = UART(connect=False)
     uart.connect()
-    assert bb.portname != ''
+    assert uart.portname != ''
+    uart.hw_reset()
 
 
 def test_enter():
@@ -17,16 +18,19 @@ def test_enter():
     uart.connect()
     uart.enter()
     assert uart.mode == 'uart'
+    uart.hw_reset()
 
 
 def test_connect_on_init():
     uart = UART()
-    assert UART.mode == 'uart'
+    assert uart.mode == 'uart'
+    uart.hw_reset()
 
 
 def test_modestring():
     uart = UART()
     assert uart.modestring == 'ART1'
+    uart.hw_reset()
 
 
 def test_echo():
