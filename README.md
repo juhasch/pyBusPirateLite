@@ -11,6 +11,7 @@ This library allows using the following modes:
 * Rawwire
 
 For more information about the BusPirate see http://dangerousprototypes.com/docs/Bus_Pirate 
+
 Based on code from Garrett Berg <cloudform511@gmail.com>
 (http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/)
 
@@ -32,15 +33,14 @@ Based on code from Garrett Berg <cloudform511@gmail.com>
     data = spi.transfer( [0x82, 0x00])
     spi.cs = False
 
-![SPI example](spi-example.png)
-
 ### Bitbang
 
     from pyBusPirateLite.BitBang import BitBang
+    from pyBusPirateLite.BBIO_base import PIN_AUX
+
     bb = BitBang()
     bb.outputs = PIN_AUX
-    bb.pins = 0        # set aux pin = 0
-
+    bb.pins = 0        # set aux pin = 0   
     bb.pins = PIN_AUX  # set aux pin = 1
 
 ### Automatically detect port
