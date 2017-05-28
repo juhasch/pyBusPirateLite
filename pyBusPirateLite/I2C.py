@@ -274,9 +274,9 @@ class I2C(BBIO_base):
         0x?? - read position 256 - the requested number of bytes read from the I2C bus
         """
         self.write(0x08)
-        self.write(numtx>>8 & 0xff)
+        self.write(numtx >> 8 & 0xff)
         self.write(numtx & 0xff)
-        self.write(numrx>>8 & 0xff)
+        self.write(numrx >> 8 & 0xff)
         self.write(numrx & 0xff)
         for data in txdata:
             self.write(data)
@@ -286,15 +286,21 @@ class I2C(BBIO_base):
     def aux(self, cmd):
         """ Provides extended use of AUX pin. Requires one command byte. Bus Pirate acknowledges 0x01.
 
-        Command	Function
-        +-----|------------+
-        |0x00 | AUX/CS low |
-        |0x01 | AUX/CS high|
-        |0x02 | AUX/CS HiZ |
-        |0x03 | AUX read   |
-        |0x10 | use AUX    |
-        |0x20 | use CS     |
-        +-----|------------+
+            +--------+------------+
+            |Command | Function   |
+            +========+============+
+            | 0x00   | AUX/CS low |
+            +--------+------------+
+            | 0x01   | AUX/CS high|
+            +--------+------------+
+            | 0x02   | AUX/CS HiZ |
+            +--------+------------+
+            | 0x03   | AUX read   |
+            +--------+------------+
+            | 0x10   | use AUX    |
+            +--------+------------+
+            | 0x20   | use CS     |
+            +--------+------------+
         """
         self.write(0x09)
         if cmd in [0x00, 0x01, 0x02, 0x03, 0x10, 0x20]:
