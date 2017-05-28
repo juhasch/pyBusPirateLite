@@ -21,7 +21,7 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .BitBang import BitBang
+from .BBIO_base import BBIO_base, BPError, ProtocolError
 
 
 class RawWireCfg:
@@ -110,16 +110,16 @@ class RawWire(BBIO_base):
         self.timeout(0.1)
         return self.response(1)
 
-    def wire_cfg(self, pins = 0):
+    def wire_cfg(self, pins=0):
         self.check_mode('raw')
         self.port.write(chr(0x80 | pins))
         self.timeout(0.1)
         return self.response(1)
 
-    #if someone who cares could write a more user-friendly wire_cfg that would be cool
+    # if someone who cares could write a more user-friendly wire_cfg that would be cool
     # (make it similar to my configure_peripherals)
 
-    def bulk_clock_ticks(self, ticks = 1):
+    def bulk_clock_ticks(self, ticks=1):
         self.check_mode('raw')
         self.port.write(chr(0x20 | (ticks - 1)))
         self.timeout(0.1)

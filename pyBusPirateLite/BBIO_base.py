@@ -1,13 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
- * Summary :
- * 
- * Created on Jan 26, 2011
- * @author: garrett
-"""
 
-import select
 from time import sleep
 import serial
 
@@ -87,7 +80,7 @@ class BBIO_base:
             r = self.response(1, True)
             if r:
                 break
-            for i in range(2):
+            for m in range(2):
                  self.write(0x00)
 
         self.timeout(self.minDelay * 10)
@@ -191,6 +184,10 @@ class BBIO_base:
         if self.port:
             self.port.close()
 
+    def __exit__(self):
+        """ Disconnect bus pirate when exiting"""
+        self.disconnect()
+
     def timeout(self, timeout = 0.1):
         sleep(timeout)
 
@@ -216,19 +213,19 @@ class BBIO_base:
     def recurse_end(self):
         self._attempts_ = 0
 
-    def recurse(self, function, *args):
+    def recurse(self, func, *args):
         if self._attempts_ < 15:
             self._attempts_ += 1
-            return function(*args)
+            return func(*args)
         raise IOError('bus pirate malfunctioning')
 
-    def recurse_flush(self, function, *args):
+    def recurse_flush(self, func, *args):
         if self._attempts_ < 15:
             self._attempts_ += 1
             for n in range(5):
                 self.write(0x00)
                 self.port.flushInput()
-            return function(*args)
+            return func(*args)
         raise IOError('bus pirate malfunctioning')
 
 
@@ -238,10 +235,11 @@ Note: Some of these do not have error checking implemented
 checking.  This is as planned, since all of these
 depend on the device you are interfacing with)"""
 
+
 def send_start_bit(self):
     self.check_mode(['i2c', 'raw'])
     self.write(0x02)
-    resp = self.response(1, True)
+    self.response(1, True)
     if self.response(1, True) == '\x01':
         self.recurse_end()
         return 1

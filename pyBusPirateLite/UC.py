@@ -55,4 +55,3 @@ class UC(BBIO, I2C, _1WIRE, RawWire, SPI, UART):
     can be updated
     """
     pass
-

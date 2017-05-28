@@ -21,9 +21,8 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import serial
-
 from .BBIO_base import BBIO_base, BPError, ProtocolError
+
 
 class BitBang(BBIO_base):
     def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
@@ -176,13 +175,14 @@ class BitBang(BBIO_base):
     def stop_getting_adc_voltages(self):
         """I was encountering problems resetting out of adc mode, so I wrote this
         little function"""
-        self.check_mode('adc')
+        #self.check_mode('adc')
         self.port.flushInput()
         for i in range(5):
             self.write(0x00)
             #r, w, e = select.select([self.port], [], [], 0.01);
             r = self.response(1, True)
-            if (r): break;
+            if r:
+                break
         self.port.flushInput()
         self.enter_bb()
         return 1
@@ -262,9 +262,9 @@ class BitBang(BBIO_base):
         else:
             raise ValueError('frequency requested is invalid')
 
-        prescaler=Prescaler
-        dutycycle=OCR
-        period=PRy
+        prescaler = Prescaler
+        dutycycle = OCR
+        period = PRy
 
         self.write(0x12)
         self.write(prescaler)

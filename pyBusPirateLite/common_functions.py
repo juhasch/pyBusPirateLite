@@ -80,7 +80,7 @@ def i2c_write_data(bp_device, data):
     return ack_signals
 
 
-def sniff_i2c_devices(bp_device, power='off'):
+def sniff_i2c_devices(bp_device, power=False):
     init_i2c(bp_device, power)
     working_addr = []
     for n in range(128):
