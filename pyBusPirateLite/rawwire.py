@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Created by Sean Nelson on 2009-10-14.
 Copyright 2009 Sean Nelson <audiohacked@gmail.com>

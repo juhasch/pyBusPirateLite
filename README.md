@@ -1,5 +1,7 @@
-# pyBusPirateLite
-Python library for BusPirate based on code from Garrett Berg. 
+pyBusPirateLite
+===============
+
+Python library for BusPirate based on code from Garrett Berg.
 It tries to be more Pythonic than the original code.
 
 This library allows using the following modes:
@@ -15,9 +17,9 @@ For more information about the BusPirate see http://dangerousprototypes.com/docs
 Based on code from Garrett Berg <cloudform511@gmail.com>
 (http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/)
 
--------------------------
 
-## Examples
+Examples
+--------
 
 ### SPI
 
