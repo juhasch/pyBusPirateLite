@@ -23,7 +23,7 @@ along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 from . import I2C
 
 
-def init_i2c(bp_device, power=True, pullups=True, speed=I2C.I2CSpeed._50KHZ):
+def init_i2c(bp_device, power=True, pullups=True, speed=I2C.I2C_speed['50KHZ']):
     """initializes i2c mode with some common settings hardwired
 
     Parameters
@@ -80,7 +80,7 @@ def i2c_write_data(bp_device, data):
     return ack_signals
 
 
-def sniff_i2c_devices(bp_device, power='off'):
+def sniff_i2c_devices(bp_device, power=False):
     init_i2c(bp_device, power)
     working_addr = []
     for n in range(128):
@@ -93,6 +93,4 @@ def sniff_i2c_devices(bp_device, power='off'):
          
         if 0 in ack_sig:
             working_addr += [n]
-   
-    print(working_addr)
     return working_addr

@@ -239,7 +239,6 @@ checking.  This is as planned, since all of these
 depend on the device you are interfacing with)"""
 
 def send_start_bit(self):
-    self.check_mode(['i2c', 'raw'])
     self.write(0x02)
     resp = self.response(1, True)
     if self.response(1, True) == '\x01':
@@ -249,7 +248,6 @@ def send_start_bit(self):
 
 
 def send_stop_bit(self):
-    self.check_mode(['i2c', 'raw'])
     self.write(0x03)
     if self.response(1, True) == 'x01':
         self.recurse_end()
@@ -279,7 +277,6 @@ def bulk_trans(self, byte_count=1, byte_string=None):
     In modes other than I2C I think it returns whatever data it gets while
     sending, but this feature is untested.  PLEASE REPORT so that I can
     document it."""
-#    self.check_mode(not_bb)
     if byte_string is None:
         pass
     self.write(0x10 | (byte_count - 1))
