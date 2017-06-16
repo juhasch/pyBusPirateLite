@@ -52,7 +52,6 @@ class BBIO_base:
         self.pins_state = None
         self.pins_direction = None
 
-
     _attempts_ = 0  # global stored for use in enter
 
     def enter_bb(self):
@@ -138,15 +137,15 @@ class BBIO_base:
         try:
             import serial.tools.list_ports as list_ports
         except ImportError:
-            raise ImportError('Pyserial version with serial.tools.list_port required')
-
-        import serial
+            raise ImportError('Pyserial version with serial.tools.list_ports required')
 
         # the API in version 2 and 3 is different
         if serial.VERSION[0] == '2':
-            ports = list_ports.comports()
+            ports = list(list_ports.comports())
             for port in ports:
                 if len(port) == 3 and '0403:6001' in port[2]:
+                    return port[0]
+                if len(port) == 3 and 'PID=0403,VID=6001' in port[2]:
                     return port[0]
         else:
             ports = list_ports.comports()
@@ -177,6 +176,8 @@ class BBIO_base:
 
         if portname == '':
             portname = self.get_port()
+        if portname == '':
+            raise IOError('Could not autodetect a BusPirate device.')
 
         self.portname = portname
         try:
@@ -184,7 +185,7 @@ class BBIO_base:
         except serial.serialutil.SerialException:
             raise IOError('Could not open port %s' % portname)
         self.connected = True
-        self.minDelay = 1 / speed
+        self.minDelay = 10 / speed
 
     def disconnect(self):
         """ Disconnect bus pirate, close com port """
@@ -237,6 +238,7 @@ Note: Some of these do not have error checking implemented
 (they return a 0 or 1.  You have to do your own error
 checking.  This is as planned, since all of these
 depend on the device you are interfacing with)"""
+
 
 def send_start_bit(self):
     self.write(0x02)

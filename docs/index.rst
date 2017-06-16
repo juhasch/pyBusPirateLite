@@ -1,9 +1,8 @@
-.. pyBusPirateLite documentation master file
+.. pyBusPirateLite documentation master file, created by
 
 pyBusPirateLite Documentation
-================================
+==============================
 
-# pyBusPirateLite
 Python library for BusPirate
 
 This library allows using the following modes:
@@ -14,34 +13,32 @@ This library allows using the following modes:
 * Onewire
 * Rawwire
 
+
 For more information about the BusPirate see http://dangerousprototypes.com/docs/Bus_Pirate
 Based on code from Garrett Berg <cloudform511@gmail.com>
 (http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/)
 
--------------------------
+.. code-block:: Python
+   :linenos:
 
-**Contents**
+   from datetime import datetime
+   datetime.now()
 
-*User Guide:*
+
+See :pep:`8` too. Or :ref:`Indices and tables`.
+We also have our own :doc:`demo` there.
+
+Contents
+--------
 
 .. toctree::
-    :maxdepth: 2
+   :maxdepth: 2
+   :caption: Contents:
 
- 
 
-*Reference:*
-
-.. toctree::
-    :maxdepth: 2
-
-    Quantity
-    Unit
-    constants
-
-**Indices and tables**
-
+Indices and tables
+------------------
 
 * :ref:`genindex`
 * :ref:`modindex`
 * :ref:`search`
-
