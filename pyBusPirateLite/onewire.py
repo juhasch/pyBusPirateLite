@@ -36,10 +36,10 @@ inary1WIRE mode:
 # 0101wxyz - Read peripherals (planned, not implemented)
 """
 
-from .BitBang import BBIO
+from .BitBang import BBIO_base
 
 
-class OneWire(BBIO):
+class OneWire(BBIO_base):
     def enter_1wire(self):
         self.check_mode('bb')
         self.write(0x04)

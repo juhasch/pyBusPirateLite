@@ -1,3 +1,5 @@
+#! /usr/bin/env python
+# -*- coding: utf-8 -*-
 """
 Created by Sean Nelson on 2009-10-14.
 Copyright 2009 Sean Nelson <audiohacked@gmail.com>
@@ -108,7 +110,7 @@ class RawWire(BBIO_base):
         self.timeout(0.1)
         return self.response(1)
 
-    #if someone who cares could write a more user-friendly wire_cfg that would be cool
+    # if someone who cares could write a more user-friendly wire_cfg that would be cool
     # (make it similar to my configure_peripherals)
 
     def bulk_clock_ticks(self, ticks = 1):

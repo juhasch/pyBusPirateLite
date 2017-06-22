@@ -6,7 +6,7 @@ def read(fname):
 
 setup(
     name = "pyBusPirateLite",
-    version = "0.1",
+    version = "0.2",
     author = "Juergen Hasch",
     author_email = "juergen.hasch@elbonia.de",
     description = ("Python library for BusPirate"),

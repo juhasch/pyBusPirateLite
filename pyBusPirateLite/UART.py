@@ -127,7 +127,7 @@ class UART(BBIO_base):
         Use the UART manual [PDF] or an online calculator to find the correct value (key values: fosc 32mHz,
         clock divider = 2, BRGH=1) . Bus Pirate responds 0x01 to each byte. Settings take effect immediately.
         """
-        BRG = (FOSC / (4 * baud)) - 1
+        BRG = (FOSC // (4 * baud)) - 1
         BRGH = ((BRG >> 8) & 0xFF)
         BRGL = (BRG & 0xFF)
         self.write(0x03)

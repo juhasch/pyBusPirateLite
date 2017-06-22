@@ -1,13 +1,6 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
- * Summary :
- * 
- * Created on Jan 26, 2011
- * @author: garrett
-"""
 
-import select
 from time import sleep
 import serial
 
@@ -35,7 +28,7 @@ PIN_POWER = 0x40
 
 
 class BBIO_base:
-    """functions used in every mode, the base of class.  Most of these you can
+    """Functions used in every mode, the base of class.  Most of these you can
     probably ignore, as they are just used in the other member classes
     Note: Also contains some of the older functions that are now probably outdated
     """
@@ -66,9 +59,13 @@ class BBIO_base:
         It also resets to raw bitbang mode from raw SPI mode, or any other protocol mode.
         This command always returns a five byte bitbang version string "BBIOx", w
         here x is the current protocol version (currently 1).
+
         Some terminals send a NULL character (0x00) on start-up, causing the Bus Pirate to enter binary mode when
         it wasn't wanted. To get around this, you must now enter 0x00 at least 20 times to enter raw bitbang mode.
-        Note: The Bus Pirate user terminal could be stuck in a configuration menu when your program attempts to enter
+
+        Notes
+        -----
+        The Bus Pirate user terminal could be stuck in a configuration menu when your program attempts to enter
         binary mode. One way to ensure that you're at the command line is to send <enter> at least 10 times,
         and then send '#' to reset. Next, send 0x00 to the command line 20+ times until you get the BBIOx version string.
         After entering bitbang mode, you can enter other binary protocol modes.
@@ -87,7 +84,7 @@ class BBIO_base:
             r = self.response(1, True)
             if r:
                 break
-            for i in range(2):
+            for m in range(2):
                  self.write(0x00)
 
         self.timeout(self.minDelay * 10)
@@ -106,7 +103,7 @@ class BBIO_base:
         raise BPError('Could not enter bitbang mode')
 
     def enter(self):
-        """Enter bitbang mode
+        """Enter bitbang mode.
            Will be overriden by other classes 
         """
         if self.mode == 'bb':
@@ -156,12 +153,12 @@ class BBIO_base:
                         return port.name
 
     def connect(self, portname='', speed=115200, timeout=0.1):
-        """ will try to automatically find a port regardless of os
+        """Will try to automatically find a port regardless of os
 
         Parameters
         ----------
         portname : str
-            Name of comport (/dev/bus_pirate or COM3)
+            Name of comport (e.g. /dev/ttyUSB0 or COM3)
         speed : int
             Communication speed, use default of 115200
         timeout : int
@@ -191,6 +188,10 @@ class BBIO_base:
         if self.port:
             self.port.close()
 
+    def __exit__(self):
+        """ Disconnect bus pirate when exiting"""
+        self.disconnect()
+
     def timeout(self, timeout = 0.1):
         sleep(timeout)
 
@@ -216,19 +217,19 @@ class BBIO_base:
     def recurse_end(self):
         self._attempts_ = 0
 
-    def recurse(self, function, *args):
+    def recurse(self, func, *args):
         if self._attempts_ < 15:
             self._attempts_ += 1
-            return function(*args)
+            return func(*args)
         raise IOError('bus pirate malfunctioning')
 
-    def recurse_flush(self, function, *args):
+    def recurse_flush(self, func, *args):
         if self._attempts_ < 15:
             self._attempts_ += 1
             for n in range(5):
                 self.write(0x00)
                 self.port.flushInput()
-            return function(*args)
+            return func(*args)
         raise IOError('bus pirate malfunctioning')
 
 
@@ -238,9 +239,10 @@ Note: Some of these do not have error checking implemented
 checking.  This is as planned, since all of these
 depend on the device you are interfacing with)"""
 
+
 def send_start_bit(self):
     self.write(0x02)
-    resp = self.response(1, True)
+    self.response(1, True)
     if self.response(1, True) == '\x01':
         self.recurse_end()
         return 1

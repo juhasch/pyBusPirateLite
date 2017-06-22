@@ -261,9 +261,9 @@ class BitBang(BBIO_base):
         else:
             raise ValueError('frequency requested is invalid')
 
-        prescaler=Prescaler
-        dutycycle=OCR
-        period=PRy
+        prescaler = Prescaler
+        dutycycle = OCR
+        period = PRy
 
         self.write(0x12)
         self.write(prescaler)

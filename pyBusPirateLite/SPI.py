@@ -28,14 +28,14 @@ along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from .BBIO_base import BBIO_base, BPError, ProtocolError
 
-SPI_speed = { '30kHz' : 0b000,
-              '125kHz': 0b001,
-              '250kHz': 0b010,
-              '1MHz'  : 0b011,
-              '2MHz'  : 0b100,
-              '2.6MHz': 0b101,
-              '4MHz'  : 0b110,
-              '8MHz'  : 0b111}
+SPI_speed = {'30kHz' : 0b000,
+             '125kHz': 0b001,
+             '250kHz': 0b010,
+             '1MHz'  : 0b011,
+             '2MHz'  : 0b100,
+             '2.6MHz': 0b101,
+             '4MHz'  : 0b110,
+             '8MHz'  : 0b111}
 
 CFG_SAMPLE = 0x01
 CFG_CLK_EDGE = 0x02
@@ -220,7 +220,7 @@ class SPI(BBIO_base):
         rxdata = self.response(length, True)
         return rxdata
 
-    def write_then_read(self, numtx, numrx, txdata, cs = True):
+    def write_then_read(self, numtx, numrx, txdata, cs=True):
         """ Write then read
 
         This command was developed to help speed ROM programming with Flashrom. It might be helpful for a lot of common
@@ -275,9 +275,9 @@ class SPI(BBIO_base):
             self.write(0x04)
         else:
             self.write(0x05)
-        self.write(numtx>>8 & 0xff)
+        self.write(numtx >> 8 & 0xff)
         self.write(numtx & 0xff)
-        self.write(numrx>>8 & 0xff)
+        self.write(numrx >> 8 & 0xff)
         self.write(numrx & 0xff)
         for data in txdata:
             self.write(data)
