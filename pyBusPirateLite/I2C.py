@@ -73,6 +73,7 @@ class I2C(BBIO_base):
             return
         if self.mode != 'bb':
             super(I2C, self).enter()
+
         self.write(0x02)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "I2C1":

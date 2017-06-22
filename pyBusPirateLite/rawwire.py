@@ -23,7 +23,7 @@ You should have received a copy of the GNU General Public License
 along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-from .BBIO_base import BBIO_base, BPError, ProtocolError
+from .BBIO_base import BBIO_base
 
 
 class RawWireCfg:
@@ -43,7 +43,9 @@ class RawWire(BBIO_base):
         """
         if self.mode == 'raw':
             return
-        self.reset()
+        if self.mode != 'bb':
+           super(RawWire, self).enter()
+
         self.write(0x05)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "RAW1":
@@ -57,7 +59,6 @@ class RawWire(BBIO_base):
     def start_bit(self):
         """is kept in because it was in for legacy code,
         I recommend you use send_start_bit"""
-        self.check_mode('raw')
         self.port.write(chr(0x02))
         self.timeout(0.1)
         return self.response(1)
@@ -65,55 +66,46 @@ class RawWire(BBIO_base):
     def stop_bit(self):
         """is kept in because it was in for legacy code,
         I recommend you use send_stop_bit"""
-        self.check_mode('raw')
         self.port.write(chr(0x03))
         self.timeout(0.1)
         return self.response(1)
 
     def read_bit(self):
-        self.check_mode('raw')
         self.port.write(chr(0x07))
         self.timeout(0.1)
         return self.response(1)
 
     def peek(self):
-        self.check_mode('raw')
         self.port.write(chr(0x08))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_tick(self):
-        self.check_mode('raw')
         self.port.write(chr(0x09))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_low(self):
-        self.check_mode('raw')
         self.port.write(chr(0x0a))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_high(self):
-        self.check_mode('raw')
         self.port.write(chr(0x0b))
         self.timeout(0.1)
         return self.response(1)
 
     def data_low(self):
-        self.check_mode('raw')
         self.port.write(chr(0x0c))
         self.timeout(0.1)
         return self.response(1)
 
     def data_high(self):
-        self.check_mode('raw')
         self.port.write(chr(0x0d))
         self.timeout(0.1)
         return self.response(1)
 
-    def wire_cfg(self, pins=0):
-        self.check_mode('raw')
+    def wire_cfg(self, pins = 0):
         self.port.write(chr(0x80 | pins))
         self.timeout(0.1)
         return self.response(1)
@@ -121,8 +113,7 @@ class RawWire(BBIO_base):
     # if someone who cares could write a more user-friendly wire_cfg that would be cool
     # (make it similar to my configure_peripherals)
 
-    def bulk_clock_ticks(self, ticks=1):
-        self.check_mode('raw')
+    def bulk_clock_ticks(self, ticks = 1):
         self.port.write(chr(0x20 | (ticks - 1)))
         self.timeout(0.1)
         return self.response(1)

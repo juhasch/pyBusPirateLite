@@ -28,7 +28,6 @@ def test_connect_on_init():
 def test_adc():
     bb = BitBang()
     value = bb.adc
-    print(value)
     assert 0.0 <= value <= 5.0
 
     
