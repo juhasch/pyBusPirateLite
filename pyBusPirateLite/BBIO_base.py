@@ -145,7 +145,7 @@ class BBIO_base:
             for port in ports:
                 if len(port) == 3 and '0403:6001' in port[2]:
                     return port[0]
-                if len(port) == 3 and 'PID=0403,VID=6001' in port[2]:
+                if len(port) == 3 and 'VID_0403+PID_6001' in port[2]:
                     return port[0]
         else:
             ports = list_ports.comports()
