@@ -145,6 +145,8 @@ class BBIO_base:
             for port in ports:
                 if len(port) == 3 and '0403:6001' in port[2]:
                     return port[0]
+                if len(port) == 3 and 'PID=0403,VID=6001' in port[2]:
+                    return port[0]
         else:
             ports = list_ports.comports()
             for port in ports:
@@ -174,6 +176,8 @@ class BBIO_base:
 
         if portname == '':
             portname = self.get_port()
+        if portname == '':
+            raise IOError('Could not autodetect a BusPirate device.')
 
         self.portname = portname
         try:
