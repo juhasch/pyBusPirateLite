@@ -11,6 +11,7 @@ This library allows using the following modes:
 * Bitbang
 * Onewire
 * Rawwire
+* ADC measurements
 
 For more information about the BusPirate see http://dangerousprototypes.com/docs/Bus_Pirate 
 

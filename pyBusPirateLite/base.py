@@ -89,6 +89,16 @@ class Buspirate:
 
     _attempts_ = 0  # global stored for use in enter
 
+    @property
+    def adc_value(self):
+        """ Read and return the voltage on the analog input pin. """
+        self.write(0x14)
+        val = int.from_bytes(self.response(2, binary=True), 'big')
+        # see
+        # http://dangerousprototypes.com/blog/2009/10/09/bus-pirate-raw-bitbang-mode/
+        # for conversion formula.
+        return (val/1024.0) * 3.3 * 2
+
     def enter_bb(self):
         """Enter bitbang mode
 
