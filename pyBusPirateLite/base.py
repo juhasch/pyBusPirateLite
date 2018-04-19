@@ -99,6 +99,16 @@ class Buspirate:
         # for conversion formula.
         return (val/1024.0) * 3.3 * 2
 
+    def set_power_on(self, val):
+        self.write(0x80 | (Buspirate.PIN_POWER if val else 0))
+        self.response(1, binary=True)
+    power_on = property(None, set_power_on, doc="""
+        Enable or disable the built-in power supplies. Note that the power
+        supplies reset every time you change modes.
+
+        This is a read-only attribute due to API limitations of the buspirate
+        firmware. """)
+
     def enter_bb(self):
         """Enter bitbang mode
 
