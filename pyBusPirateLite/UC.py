@@ -1,26 +1,25 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created by Garrett Berg on 2011-1-22
-Copyright 2011 Garrett Berg <cloudform511@gmail.com>
 
-This file is part of pyBusPirate.
+# Created by Garrett Berg on 2011-1-22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# This file is part of pyBusPirate.
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-pyBusPirate is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-pyBusPirate is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-from .BitBang import BBIO
+from .BitBang import BitBang
 from .I2C import I2C
 from .onewire import OneWire
 from .rawwire import RawWire
@@ -37,7 +36,7 @@ in order to use normal data outputs.
 """
 
 
-class UC(BBIO, I2C, _1WIRE, RawWire, SPI, UART):
+class UC(BitBang, I2C, OneWire, RawWire, SPI, UART):
     """This class brings together all of the modules under a single class, allowing you to switch
     to other modules, do a function, and then switch back transparently.  The class will keep track
     of where you are and raise an Error if you do something wrong.

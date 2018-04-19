@@ -1,29 +1,28 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created by Garrett Berg on 2011-1-22
-Copyright 2011 Garrett Berg <cloudform511@gmail.com>
 
-This file is part of pyBusPirate.
+# Created by Garrett Berg on 2011-1-22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# This file is part of pyBusPirate.
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-pyBusPirate is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-pyBusPirate is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-from . import I2C
+from .I2C import I2C
 
 
-def init_i2c(bp_device, power=True, pullups=True, speed=I2C.I2C_speed['50KHZ']):
+def init_i2c(bp_device, power=True, pullups=True, speed=I2C.SPEEDS['50kHz']):
     """initializes i2c mode with some common settings hardwired
 
     Parameters
