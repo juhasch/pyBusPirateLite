@@ -23,37 +23,45 @@ Examples
 
 ### SPI
 
-    from pyBusPirateLite.SPI import *
+```python
+from pyBusPirateLite.SPI import *
 
-    spi = SPI()
-    spi.pins = PIN_POWER | PIN_CS 
-    spi.config = CFG_PUSH_PULL | CFG_IDLE
-    spi.speed = '1MHz'
+spi = SPI()
+spi.pins = PIN_POWER | PIN_CS 
+spi.config = CFG_PUSH_PULL | CFG_IDLE
+spi.speed = '1MHz'
 
-    # send two bytes and receive answer
-    spi.cs = True
-    data = spi.transfer( [0x82, 0x00])
-    spi.cs = False
+# send two bytes and receive answer
+spi.cs = True
+data = spi.transfer( [0x82, 0x00])
+spi.cs = False
+```
 
 ### Bitbang
 
-    from pyBusPirateLite.BitBang import BitBang
-    from pyBusPirateLite.BBIO_base import PIN_AUX
+```python
+from pyBusPirateLite.BitBang import BitBang
+from pyBusPirateLite.BBIO_base import PIN_AUX
 
-    bb = BitBang()
-    bb.outputs = PIN_AUX
-    bb.pins = 0        # set aux pin = 0   
-    bb.pins = PIN_AUX  # set aux pin = 1
+bb = BitBang()
+bb.outputs = PIN_AUX
+bb.pins = 0        # set aux pin = 0   
+bb.pins = PIN_AUX  # set aux pin = 1
+```
 
 ### Automatically detect port
-    from pyBusPirateLite.BitBang import BitBang
-    bb = BitBang(connect=False)
-    port = bb.get_port()
-    print(port)
+```python
+from pyBusPirateLite.BitBang import BitBang
+bb = BitBang(connect=False)
+port = bb.get_port()
+print(port)
+```
 
 ### I2C
-    from pyBusPirateLite.SPI import *
+```python
+from pyBusPirateLite.I2C import *
 
-    i2c = I2C()
-    i2c.pins = PIN_POWER | PIN_CS 
-    i2c.speed = '50kHz'
+i2c = I2C()
+i2c.pins = PIN_POWER | PIN_CS 
+i2c.speed = '50kHz'
+```
