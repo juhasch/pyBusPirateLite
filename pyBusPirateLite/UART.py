@@ -65,7 +65,7 @@ class UART(BBIO_base):
 
         Example
         -------
-        >>> spi = UART()
+        >>> uart = UART()
         """
         super().__init__()
         if connect is True:
@@ -80,7 +80,7 @@ class UART(BBIO_base):
         Raises
         ------
         BPError
-            Could not enter SPI mode
+            Could not enter UART mode
         """
         if self.mode == 'uart':
             return
