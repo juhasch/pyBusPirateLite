@@ -1,6 +1,27 @@
 #! /usr/bin/env python
 # -*- coding: utf-8 -*-
 
+# Created by Sean Nelson on 2009-10-14.
+# Copyright 2009 Sean Nelson <audiohacked@gmail.com>
+# 
+# Overhauled and edited by Garrett Berg on 2011- 1 - 22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# This file is part of pyBusPirate.
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
+
 from time import sleep
 import serial
 
@@ -12,27 +33,43 @@ class BPError(IOError):
 class ProtocolError(IOError):
     pass
 
-"""
-PICSPEED = 24MHZ / 16MIPS
-"""
-# 0x01 CS
-# 0x08 - +3.3V
+class Buspirate:
+    """Base class for all modes. This contains low-level functions for direct
+    hardware access.
 
-PIN_CS = 0x01
-PIN_MISO = 0x02
-PIN_CLK = 0x04
-PIN_MOSI = 0x08
-PIN_AUX = 0x10
-PIN_PULLUP = 0x20
-PIN_POWER = 0x40
-
-
-class BBIO_base:
-    """Functions used in every mode, the base of class.  Most of these you can
-    probably ignore, as they are just used in the other member classes
-    Note: Also contains some of the older functions that are now probably outdated
+    Note: This class also contains some of the older functions that are now
+    probably outdated
     """
-    def __init__(self):
+
+    """
+    PICSPEED = 24MHZ / 16MIPS
+    """
+    # 0x01 CS
+    # 0x08 - +3.3V
+
+    PIN_CS = 0x01
+    PIN_MISO = 0x02
+    PIN_CLK = 0x04
+    PIN_MOSI = 0x08
+    PIN_AUX = 0x10
+    PIN_PULLUP = 0x20
+    PIN_POWER = 0x40
+
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+        """
+        This constructor by default conntects to the first buspirate it can
+        find. If you don't want that, set connect to False.
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+        """
+
         self.minDelay = 1 / 115200
         self.mode = None
         self.port = None
@@ -45,8 +82,32 @@ class BBIO_base:
         self.pins_state = None
         self.pins_direction = None
 
+        if connect is True:
+            self.connect(portname, speed, timeout)
+            self.enter()
+
 
     _attempts_ = 0  # global stored for use in enter
+
+    @property
+    def adc_value(self):
+        """ Read and return the voltage on the analog input pin. """
+        self.write(0x14)
+        val = int.from_bytes(self.response(2, binary=True), 'big')
+        # see
+        # http://dangerousprototypes.com/blog/2009/10/09/bus-pirate-raw-bitbang-mode/
+        # for conversion formula.
+        return (val/1024.0) * 3.3 * 2
+
+    def set_power_on(self, val):
+        self.write(0x80 | (Buspirate.PIN_POWER if val else 0))
+        self.response(1, binary=True)
+    power_on = property(None, set_power_on, doc="""
+        Enable or disable the built-in power supplies. Note that the power
+        supplies reset every time you change modes.
+
+        This is a read-only attribute due to API limitations of the buspirate
+        firmware. """)
 
     def enter_bb(self):
         """Enter bitbang mode

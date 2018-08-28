@@ -1,52 +1,35 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created by Sean Nelson on 2009-10-14.
-Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 
-Overhauled and edited by Garrett Berg on 2011- 1 - 22
-Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# Created by Sean Nelson on 2009-10-14.
+# Copyright 2009 Sean Nelson <audiohacked@gmail.com>
+# 
+# Overhauled and edited by Garrett Berg on 2011- 1 - 22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-pyBusPirate is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-pyBusPirate is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-from .BBIO_base import BBIO_base, ProtocolError
+from .base import Buspirate, ProtocolError
 
 
-class BitBang(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
-        """ Provide access to the Bus Pirate bitbang mode
+class BitBang(Buspirate):
+    """ Provide access to the Bus Pirate bitbang mode
 
-        Parameters
-        ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
-        connect : bool
-            Automatically connect to BusPirate (default) 
-
-        Example
-        -------
-        >>> bb = BitBang()
-        """
-        super().__init__()
-        if connect is True:
-            self.connect(portname, speed, timeout)
-            self.enter()
+    Example
+    -------
+    >>> bb = BitBang()
+    """
 
     @property
     def outputs(self):

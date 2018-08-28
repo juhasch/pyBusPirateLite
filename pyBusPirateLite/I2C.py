@@ -1,61 +1,45 @@
 #!/usr/bin/env python
 # encoding: utf-8
-"""
-Created by Sean Nelson on 2009-10-14.
-Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 
-Overhauled and edited by Garrett Berg on 2011- 1 - 22
-Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# Created by Sean Nelson on 2009-10-14.
+# Copyright 2009 Sean Nelson <audiohacked@gmail.com>
+# 
+# Overhauled and edited by Garrett Berg on 2011- 1 - 22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# This file is part of pyBusPirate.
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-This file is part of pyBusPirate.
+from .base import Buspirate, BPError, ProtocolError
 
-pyBusPirate is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
+class I2C(Buspirate):
+    """ Provide access to the Bus Pirate I2C interface
 
-pyBusPirate is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
+    Example
+    -------
+    >>> i2c = I2C()
+    >>> i2c.speed = '400kHz'
+    """
 
-You should have received a copy of the GNU General Public License
-along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-from .BBIO_base import BBIO_base, BPError, ProtocolError
-
-I2C_speed = { '400kHz': 0x03,
+    SPEEDS = {'400kHz': 0x03,
               '100kHz': 0x02,
               '50kHz' : 0x01,
               '5kHz'  : 0x00}
 
-pin_mapping = {'AUX':   0b10,
-               'CS':     0b01}
-
-
-class I2C(BBIO_base):
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
-        """ Provide access to the Bus Pirate I2C interface
-
-        Parameters
-        ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
-
-        Example
-        -------
-        >>> i2c = I2C()
-        >>> i2c.speed = '400kHz'
-        """
-        super().__init__()
-        if connect is True:
-            self.connect(portname, speed, timeout)
-            self.enter()
+    pin_mapping = {'AUX': 0b10,
+                    'CS': 0b01}
 
     def enter(self):
         """ Enter I2C mode
@@ -213,7 +197,7 @@ class I2C(BBIO_base):
             If I2C speed could not be set
         """
         try:
-            clock = I2C_speed[frequency]
+            clock = SPEEDS[frequency]
         except KeyError:
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)

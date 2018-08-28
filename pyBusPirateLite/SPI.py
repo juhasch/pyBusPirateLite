@@ -1,34 +1,34 @@
 #!/usr/bin/env python
 # encoding: utf-8
-"""
-Created by Sean Nelson on 2009-10-14.
-Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 
-Overhauled and edited by Garrett Berg on 2011- 1 - 22
-Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# Created by Sean Nelson on 2009-10-14.
+# Copyright 2009 Sean Nelson <audiohacked@gmail.com>
+# 
+# Overhauled and edited by Garrett Berg on 2011- 1 - 22
+# Copyright 2011 Garrett Berg <cloudform511@gmail.com>
+# 
+# Updated and made Python3 compatible by Juergen Hasch, 20160501
+# Copyright 2016 Juergen Hasch <python@elbonia.de>
+# 
+# This file is part of pyBusPirate.
+# 
+# pyBusPirate is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# pyBusPirate is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-Updated and made Python3 compatible by Juergen Hasch, 20160501
-Copyright 2016 Juergen Hasch <python@elbonia.de>
+from .base import Buspirate, BPError, ProtocolError
 
-This file is part of pyBusPirate.
-
-pyBusPirate is free software: you can redistribute it and/or modify
-it under the terms of the GNU General Public License as published by
-the Free Software Foundation, either version 3 of the License, or
-(at your option) any later version.
-
-pyBusPirate is distributed in the hope that it will be useful,
-but WITHOUT ANY WARRANTY; without even the implied warranty of
-MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-GNU General Public License for more details.
-
-You should have received a copy of the GNU General Public License
-along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
-"""
-
-from .BBIO_base import BBIO_base, BPError, ProtocolError
-
-SPI_speed = {'30kHz' : 0b000,
+class SPI(Buspirate):
+    SPEEDS = {'30kHz' : 0b000,
              '125kHz': 0b001,
              '250kHz': 0b010,
              '1MHz'  : 0b011,
@@ -37,18 +37,16 @@ SPI_speed = {'30kHz' : 0b000,
              '4MHz'  : 0b110,
              '8MHz'  : 0b111}
 
-CFG_SAMPLE = 0x01
-CFG_CLK_EDGE = 0x02
-CFG_IDLE = 0x04
-CFG_PUSH_PULL = 0x08
+    CFG_SAMPLE = 0x01
+    CFG_CLK_EDGE = 0x02
+    CFG_IDLE = 0x04
+    CFG_PUSH_PULL = 0x08
 
-PIN_CS = 1
-PIN_AUX = 2
-PIN_PULLUP = 4
-PIN_POWER = 8
+    PIN_CS = 1
+    PIN_AUX = 2
+    PIN_PULLUP = 4
+    PIN_POWER = 8
 
-
-class SPI(BBIO_base):
     def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide high-speed access to the Bus Pirate SPI hardware
 
@@ -72,14 +70,11 @@ class SPI(BBIO_base):
         >>> data = spi.transfer( [0x82, 0x00])
         >>> spi.cs = False
         """
-        super().__init__()
-        if connect is True:       
-            self.connect(portname, speed, timeout)       
-            self.enter()
         self._config = None
         self._speed = None
         self._cs = None
         self._pins = None
+        super().__init__(portname, speed, timeout, connect)
 
     def enter(self):
         """ Enter raw SPI mode
@@ -329,7 +324,7 @@ class SPI(BBIO_base):
             If I2C speed could not be set
         """
         try:
-            clock = SPI_speed[frequency]
+            clock = SPEEDS[frequency]
         except KeyError:
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)
