@@ -1,3 +1,7 @@
+
+[![Documentation Status](https://readthedocs.org/projects/pybuspiratelite/badge/?version=latest)](http://pybuspiratelite.readthedocs.io/en/latest/?badge=latest)
+
+
 pyBusPirateLite
 ===============
 
