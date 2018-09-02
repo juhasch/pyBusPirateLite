@@ -9,7 +9,7 @@ def read(fname):
 setup(
     name = "pyBusPirateLite",
     version = "0.3",
-    python_requires='>=3.6'
+    python_requires='>=3.6',
     author = "Juergen Hasch",
     author_email = "juergen.hasch@elbonia.de",
     description = ("Python library for BusPirate"),
