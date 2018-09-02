@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -25,9 +22,10 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import Buspirate, BPError, ProtocolError
+from .base import BPError, BusPirate, ProtocolError
 
-class SPI(Buspirate):
+
+class SPI(BusPirate):
     SPEEDS = {'30kHz' : 0b000,
              '125kHz': 0b001,
              '250kHz': 0b010,
@@ -63,8 +61,10 @@ class SPI(Buspirate):
 
         Example
         -------
+        >>> from pyBusPirateLite.SPI import SPI
         >>> spi = SPI()
-        >>> spi.config(CFG_PUSH_PULL | CFG_IDLE)
+        >>> spi.pins = SPI.PIN_POWER | SPI.PIN_CS
+        >>> spi.config = SPI.CFG_PUSH_PULL | SPI.CFG_IDLE
         >>> spi.speed = '1MHz'
         >>> spi.cs = True
         >>> data = spi.transfer( [0x82, 0x00])
@@ -324,7 +324,7 @@ class SPI(Buspirate):
             If I2C speed could not be set
         """
         try:
-            clock = SPEEDS[frequency]
+            clock = self.SPEEDS[frequency]
         except KeyError:
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)

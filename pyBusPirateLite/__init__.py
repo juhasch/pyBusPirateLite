@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-#
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -36,4 +33,4 @@ from .SPI import *
 from .UART import *
 from .UC import *
 
-__version__ = 0.2
+__version__ = 0.3

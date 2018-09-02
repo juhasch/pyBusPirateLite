@@ -13,14 +13,17 @@
 # All configuration values have a default; values that are commented out
 # serve to show the default.
 
+import os
 import sys
+
+import pyBusPirateLite
 
 # If extensions (or modules to document with autodoc) are in another directory,
 # add these directories to sys.path here. If the directory is relative to the
 # documentation root, use os.path.abspath to make it absolute, like shown here.
 sys.path.insert(1, '../')
+sys.path.insert(0, os.path.abspath('.'))
 
-import pyBusPirateLite
 
 # -- General configuration ------------------------------------------------
 
@@ -52,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pyBusPirateLite'
-copyright = '2017, Juergen Hasch'
+copyright = '2018, Juergen Hasch'
 author = 'Jürgen Hasch'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -113,7 +116,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'alabaster'
+html_theme = 'sphinx_rtd_theme'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -287,3 +290,5 @@ texinfo_documents = [
 
 # If true, do not generate a @detailmenu in the "Top" node's menu.
 #texinfo_no_detailmenu = False
+
+numpydoc_show_class_members = False

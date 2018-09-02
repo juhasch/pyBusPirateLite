@@ -1,8 +1,10 @@
 # -*- coding: utf-8 -*-
-from pyBusPirateLite.BitBang import BitBang
-from pyBusPirateLite.BBIO_base import *
-from nose.tools import raises
 from time import sleep
+
+from nose.tools import raises
+
+from pyBusPirateLite.BBIO_base import *
+from pyBusPirateLite.BitBang import BitBang
 
 
 @raises(TypeError)

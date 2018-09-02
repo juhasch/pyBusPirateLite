@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # Created by Ondrej Caletka on 2010-11-06.
 # Copyright 2010 Ondrej Caletka <ondrej.caletka@gmail.com>
 #
@@ -20,15 +17,32 @@
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 ""
-
-from .I2C import *
+from .I2C import I2C
 
 """ enter binary mode """
 
 class I2Chigh(I2C):
     """High level I2C transactions, not included in uc class"""
-    def __init__(self, port, speed, t = 1):
-        I2C.__init__(self, port, speed, t)
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+        """
+        This constructor by default conntects to the first buspirate it can
+        find. If you don't want that, set connect to False.
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+ 
+        Examples
+        --------
+        >>> from pyBusPirateLite.I2Chigh import I2Chigh
+        >>> i2c = I2Chigh()
+        """
+        super().__init__(portname, speed, timeout, connect)
 
     def get_byte(self, i2caddr, addr):
         """ Read one byte from address addr """
@@ -86,5 +100,3 @@ class I2Chigh(I2C):
         return ord(rh) * 256 + ord(rl)
 
 '''some standard functions for i2c communication'''
-
-

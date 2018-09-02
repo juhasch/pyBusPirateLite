@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -22,16 +19,11 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import Buspirate, BPError, ProtocolError
+from .base import BPError, BusPirate, ProtocolError
 
-class I2C(Buspirate):
-    """ Provide access to the Bus Pirate I2C interface
 
-    Example
-    -------
-    >>> i2c = I2C()
-    >>> i2c.speed = '400kHz'
-    """
+class I2C(BusPirate):
+    """ Provide access to the Bus Pirate I2C interface"""
 
     SPEEDS = {'400kHz': 0x03,
               '100kHz': 0x02,
@@ -41,6 +33,28 @@ class I2C(Buspirate):
     pin_mapping = {'AUX': 0b10,
                     'CS': 0b01}
 
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+        """
+        This constructor by default conntects to the first buspirate it can
+        find. If you don't want that, set connect to False.
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+ 
+        Examples
+        --------
+        >>> from pyBusPirateLite.I2C import I2C
+        >>> i2c = I2C()
+        >>> i2c.speed = '400kHz'
+        """
+        super().__init__(portname, speed, timeout, connect)
+        
     def enter(self):
         """ Enter I2C mode
 
@@ -197,7 +211,7 @@ class I2C(Buspirate):
             If I2C speed could not be set
         """
         try:
-            clock = SPEEDS[frequency]
+            clock = self.SPEEDS[frequency]
         except KeyError:
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)
@@ -294,4 +308,3 @@ class I2C(Buspirate):
             raise ProtocolError('Illegal extended AUX command')
         if self.response(1, True) != 0x01:
             raise ProtocolError('Error in extended AUX command')
-

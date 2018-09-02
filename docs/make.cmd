@@ -9,7 +9,7 @@ SET PAPER=
 SET SRCDIR=source
 
 IF "%PAPER%" == "" SET PAPER=a4
-SET ALLSPHINXOPTS=-d build\doctrees -D latex_paper_size=%PAPER% %SPHINXOPTS% %SRCDIR%
+SET ALLSPHINXOPTS=-d _build\doctrees -D latex_paper_size=%PAPER% %SPHINXOPTS% %SRCDIR%
 
 FOR %%X IN (%SPHINXBUILD%.exe) DO SET P=%%~$PATH:X
 

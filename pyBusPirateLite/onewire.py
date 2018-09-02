@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # Created by Sean Nelson on 2009-10-20.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -35,10 +32,30 @@ Binary1WIRE mode:
 0101wxyz - Read peripherals (planned, not implemented)
 """
 
-from .BitBang import Buspirate
+from .BitBang import BusPirate
 
 
-class OneWire(Buspirate):
+class OneWire(BusPirate):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+        """ Provide access to the Bus Pirate Onewire protocol
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+        connect : bool
+            Automatically connect to BusPirate (default) 
+
+        Example
+        -------
+        >>> spi = OneWire()
+        """
+        super().__init__(portname, speed, timeout, connect)
+
     def enter_1wire(self):
         self.check_mode('bb')
         self.write(0x04)

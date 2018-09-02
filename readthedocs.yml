@@ -1,0 +1,10 @@
+name: PhysicalQuantities
+type: sphinx
+build:
+   image: latest
+python:
+    version: 3.6
+    setup_py_install: true
+formats:
+    - none
+requirements_file: docs/requirements.txt
