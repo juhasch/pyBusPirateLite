@@ -1,6 +1,3 @@
-#!/usr/bin/env python
-# encoding: utf-8
-
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -22,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import Buspirate, BPError
+from .base import BPError, BusPirate
 
 FOSC = (32000000 / 2)
 
@@ -47,7 +44,7 @@ class UARTSpeed:
     _115200 = 0b1001
 
 
-class UART(Buspirate):
+class UART(BusPirate):
     def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
         """ Provide the Bus Pirate UART interface
 

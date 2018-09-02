@@ -40,22 +40,30 @@ SPI::
     data = spi.transfer( [0x82, 0x00])
     spi.cs = False
 
+The starts an SPI transfer that looks like this:
+
+.. image:: images/spi_cs.png
+
+
 Bitbang::
 
     from pyBusPirateLite.BitBang import BitBang
-    from pyBusPirateLite.BBIO_base import PIN_AUX
 
     bb = BitBang()
-    bb.outputs = PIN_AUX
+    bb.outputs = bb.PIN_AUX
     bb.pins = 0        # set aux pin = 0
-    bb.pins = PIN_AUX  # set aux pin = 1
+    bb.pins = bb.PIN_AUX  # set aux pin = 1
 
- 2C::
+This toggles the AUX pin like this:
 
-    from pyBusPirateLite.SPI import *
+.. image:: images/bitbang.png
+
+I2C::
+
+    from pyBusPirateLite.I2C import I2C
 
     i2c = I2C()
-    i2c.pins = PIN_POWER | PIN_CS
+    i2c.pins = i2c.PIN_POWER | i2c.PIN_CS
     i2c.speed = '50kHz'
 
 Get BusPirate serial port::
@@ -69,72 +77,10 @@ Get BusPirate serial port::
 Classes
 #######
 
-pyBusPirateLite.BBIO_base.BBIO_base
------------------------------------
+.. toctree::
+    :maxdepth: 1
 
-.. autoclass:: pyBusPirateLite.BBIO_base.BBIO_base
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.BitBang.BitBang
--------------------------------
-
-.. autoclass:: pyBusPirateLite.BitBang.BitBang
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.I2C.I2C
------------------------
-
-.. autoclass:: pyBusPirateLite.I2C.I2C
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.SPI.SPI
------------------------
-
-.. autoclass:: pyBusPirateLite.SPI.SPI
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.UART.UART
--------------------------
-
-.. autoclass:: pyBusPirateLite.UART.UART
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.UC.UC
----------------------
-
-.. autoclass:: pyBusPirateLite.UC.UC
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
-pyBusPirateLite.onewire.OneWire
--------------------------------
-
-.. autoclass:: pyBusPirateLite.onewire.OneWire
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-pyBusPirateLite.rawwire.RawWire
--------------------------------
-
-.. autoclass:: pyBusPirateLite.rawwire.RawWire
-    :members:
-    :undoc-members:
-    :show-inheritance:
-
-
+    modules
 
 Indices and tables
 ------------------

@@ -25,11 +25,11 @@ Examples
 ### SPI
 
 ```python
-from pyBusPirateLite.SPI import *
+from pyBusPirateLite.SPI import SPI
 
 spi = SPI()
-spi.pins = PIN_POWER | PIN_CS 
-spi.config = CFG_PUSH_PULL | CFG_IDLE
+spi.pins = SPI.PIN_POWER | SPI.PIN_CS 
+spi.config = SPI.CFG_PUSH_PULL | SPI.CFG_IDLE
 spi.speed = '1MHz'
 
 # send two bytes and receive answer
@@ -39,23 +39,13 @@ spi.cs = False
 ```
 
 ### Bitbang
-
 ```python
 from pyBusPirateLite.BitBang import BitBang
-from pyBusPirateLite.BBIO_base import PIN_AUX
 
 bb = BitBang()
-bb.outputs = PIN_AUX
+bb.outputs = bb.PIN_AUX
 bb.pins = 0        # set aux pin = 0   
-bb.pins = PIN_AUX  # set aux pin = 1
-```
-
-### Automatically detect port
-```python
-from pyBusPirateLite.BitBang import BitBang
-bb = BitBang(connect=False)
-port = bb.get_port()
-print(port)
+bb.pins = bb.PIN_AUX  # set aux pin = 1
 ```
 
 ### I2C
@@ -65,4 +55,13 @@ from pyBusPirateLite.I2C import *
 i2c = I2C()
 i2c.pins = PIN_POWER | PIN_CS 
 i2c.speed = '50kHz'
+```
+
+### Detect port
+```python
+from pyBusPirateLite.BitBang import BitBang
+bb = BitBang(connect=False)
+port = bb.get_port()
+print(port)
+bb.connect()
 ```

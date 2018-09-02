@@ -1,6 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
 # 
@@ -23,6 +20,7 @@
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from time import sleep
+
 import serial
 
 
@@ -33,7 +31,8 @@ class BPError(IOError):
 class ProtocolError(IOError):
     pass
 
-class Buspirate:
+
+class BusPirate:
     """Base class for all modes. This contains low-level functions for direct
     hardware access.
 
@@ -86,7 +85,6 @@ class Buspirate:
             self.connect(portname, speed, timeout)
             self.enter()
 
-
     _attempts_ = 0  # global stored for use in enter
 
     @property
@@ -100,7 +98,7 @@ class Buspirate:
         return (val/1024.0) * 3.3 * 2
 
     def set_power_on(self, val):
-        self.write(0x80 | (Buspirate.PIN_POWER if val else 0))
+        self.write(0x80 | (self.PIN_POWER if val else 0))
         self.response(1, binary=True)
     power_on = property(None, set_power_on, doc="""
         Enable or disable the built-in power supplies. Note that the power
@@ -191,7 +189,7 @@ class Buspirate:
         Returns
         -------
         str
-            First valid portname
+            First valid port name
         """
         try:
             import serial.tools.list_ports as list_ports
@@ -213,7 +211,7 @@ class Buspirate:
             for port in ports:
                 if hasattr(port, 'pid') and hasattr(port, 'vid'):
                     if port.vid == 1027 and port.pid == 24577:
-                        return port.name
+                        return port.device
 
     def connect(self, portname='', speed=115200, timeout=0.1):
         """Will try to automatically find a port regardless of os
@@ -253,7 +251,7 @@ class Buspirate:
         if self.port:
             self.port.close()
 
-    def __exit__(self):
+    def __exit__(self, exc_type, exc_val, exc_tb):
         """ Disconnect bus pirate when exiting"""
         self.disconnect()
 

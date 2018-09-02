@@ -1,4 +1,4 @@
-from pyBusPirateLite.SPI import SPI, CFG_PUSH_PULL, CFG_IDLE
+from pyBusPirateLite.SPI import CFG_IDLE, CFG_PUSH_PULL, SPI
 
 
 def test_init():

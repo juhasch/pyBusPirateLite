@@ -22,7 +22,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import Buspirate
+from .base import BusPirate
 
 
 class RawWireCfg:
@@ -32,7 +32,28 @@ class RawWireCfg:
     OUTPUT = 0x08
 
 
-class RawWire(Buspirate):
+class RawWire(BusPirate):
+    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+        """
+        This constructor by default conntects to the first buspirate it can
+        find. If you don't want that, set connect to False.
+
+        Parameters
+        ----------
+        portname : str
+            Name of comport (/dev/bus_pirate or COM3)
+        speed : int
+            Communication speed, use default of 115200
+        timeout : int
+            Timeout in s to wait for reply
+ 
+        Examples
+        --------
+        >>> from pyBusPirateLite.rawwire import RawWire
+        >>> raw = RawWire()
+        """
+        super().__init__(portname, speed, timeout, connect)
+
     def enter(self):
         """Enter raw wire mode
 
