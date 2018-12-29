@@ -50,11 +50,16 @@ Bitbang::
     from pyBusPirateLite.BitBang import BitBang
 
     bb = BitBang()
-    bb.outputs = bb.PIN_AUX
-    bb.pins = 0        # set aux pin = 0
-    bb.pins = bb.PIN_AUX  # set aux pin = 1
+    bb.outputs = bb.PIN_AUX | bb.PIN_CLK | bb.PIN_CS
+    bb.pins = 0
+    bb.pins = bb.PIN_AUX | bb.PIN_CLK | bb.PIN_CS
+    bb.pins = 0
+    bb.pins = bb.PIN_AUX
+    bb.pins = 0
+    bb.pins = bb.PIN_AUX | bb.PIN_CLK | bb.PIN_CS
+    bb.pins = 0
 
-This toggles the AUX pin like this:
+This toggles the different pin like this:
 
 .. image:: images/bitbang.png
 
@@ -63,8 +68,15 @@ I2C::
     from pyBusPirateLite.I2C import I2C
 
     i2c = I2C()
-    i2c.pins = i2c.PIN_POWER | i2c.PIN_CS
-    i2c.speed = '50kHz'
+    i2c.speed = '400kHz'
+    i2c.configure(power=True)
+    i2c.transfer([0x5x])
+
+
+.. image:: images/i2c.png
+
+For more see :ref:`i2c_examples`
+
 
 Get BusPirate serial port::
 
