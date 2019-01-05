@@ -107,7 +107,7 @@ class UART(BusPirate):
             self.write(0x03)
         else:
             self.write(0x02)
-        if self.response(1, True) != '\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not set echo mode")
         self._echo = mode
 
@@ -142,14 +142,14 @@ class UART(BusPirate):
         """
         self.write(0x0f)
         self.timeout(0.1)
-        self.response(1, True)
+        self.response(1, binary=True)
 
     def set_cfg(self, cfg):
         self.write(0xC0 | cfg)
         self.timeout(0.1)
-        return self.response(1, True)
+        return self.response(1, binary=True)
 
     def read_cfg(self):
         self.write(0xd0)
         self.timeout(0.1)
-        return self.response(1, True)
+        return self.response(1, binary=True)

@@ -140,7 +140,7 @@ class BusPirate:
         self.port.flushInput()
         for i in range(10):
             self.write(0x00)
-            r = self.response(1, True)
+            r = self.response(1, binary=True)
             if r:
                 break
             for m in range(2):
@@ -306,7 +306,7 @@ depend on the device you are interfacing with)"""
 def send_start_bit(self):
     self.write(0x02)
     self.response(1, True)
-    if self.response(1, True) == '\x01':
+    if self.response(1, binary=True) == b'\x01':
         self.recurse_end()
         return 1
     return self.recurse(self.send_start_bit)
@@ -314,7 +314,7 @@ def send_start_bit(self):
 
 def send_stop_bit(self):
     self.write(0x03)
-    if self.response(1, True) == 'x01':
+    if self.response(1, binary=True) == b'\x01':
         self.recurse_end()
         return 1
     return self.recurse(self.send_stop_bit)
@@ -325,11 +325,10 @@ def read_byte(self):
     byte manually.  NO ERROR CHECKING (obviously)"""
     if self.mode == 'raw':
         self.write(0x06)
-        return self.response(1, True)  # this was changed, before it didn't have the 'True' which means it
-        # would have never returned any real data!
+        return self.response(1, binary=True)
     else:
         self.write(0x04)
-        return self.response(1, True)
+        return self.response(1, binary=True)
 
 
 def bulk_trans(self, byte_count=1, byte_string=None):
@@ -347,8 +346,8 @@ def bulk_trans(self, byte_count=1, byte_string=None):
     self.write(0x10 | (byte_count - 1))
     for i in range(byte_count):
         self.write(byte_string[i])
-    data = self.response(byte_count + 1, True)
-    if ord(data[0]) == 1:  # bus pirate sent an acknolwedge properly
+    data = self.response(byte_count + 1, binary=True)
+    if data[0] == 1:  # bus pirate sent an acknolwedge properly
         self.recurse_end()
         return data[1:]
     self.recurse(self.bulk_trans, byte_count, byte_string)

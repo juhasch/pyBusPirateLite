@@ -235,7 +235,7 @@ class I2C(BusPirate):
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)
 
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Could not set IC2 speed')
         self.i2c_speed = frequency
 
@@ -298,7 +298,7 @@ class I2C(BusPirate):
         self.write(numrx & 0xff)
         for data in txdata:
             self.write(data)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Error in transmission')
 
         return self.response(numrx, binary=True)
@@ -359,5 +359,5 @@ class I2C(BusPirate):
         if cs:
             data |= 0x01
         self.write(data)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Error configuring pins')
