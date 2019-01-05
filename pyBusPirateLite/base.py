@@ -90,6 +90,9 @@ class BusPirate:
     @property
     def adc_value(self):
         """ Read and return the voltage on the analog input pin. """
+        # raise error to prevent tab-completion having side-effects
+        if self.mode != 'bb':
+            raise TypeError("Action only valid in bitbang mode")
         self.write(0x14)
         val = int.from_bytes(self.response(2, binary=True), 'big')
         # see
