@@ -279,6 +279,8 @@ class SPI(BusPirate):
         if self.response(1, True) != b'\x01':
             raise ProtocolError("Error transmitting data")
 
+        return self.response(numrx, binary=True)
+
     @property
     def cs(self):
         """ Return chip select pin status """
