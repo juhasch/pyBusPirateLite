@@ -103,6 +103,7 @@ class BusPirate:
     def set_power_on(self, val):
         self.write(0x80 | (self.PIN_POWER if val else 0))
         self.response(1, binary=True)
+
     power_on = property(None, set_power_on, doc="""
         Enable or disable the built-in power supplies. Note that the power
         supplies reset every time you change modes.
@@ -263,7 +264,7 @@ class BusPirate:
 
     def write(self, value):
         self.port.write(value.to_bytes(1, 'big'))
-        
+
     def response(self, byte_count=1, binary=False):
         """Request a number of bytes
 

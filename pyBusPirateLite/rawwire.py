@@ -22,7 +22,13 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
+# See http://dangerousprototypes.com/blog/2009/10/27/binary-raw-wire-mode/
+
 from .base import BusPirate
+
+
+def bchar(char):
+    return bytearray([char])
 
 
 class RawWireCfg:
@@ -79,54 +85,95 @@ class RawWire(BusPirate):
     def start_bit(self):
         """is kept in because it was in for legacy code,
         I recommend you use send_start_bit"""
-        self.port.write(chr(0x02))
+        self.port.write(bchar(0x02))
         self.timeout(0.1)
         return self.response(1)
 
     def stop_bit(self):
         """is kept in because it was in for legacy code,
         I recommend you use send_stop_bit"""
-        self.port.write(chr(0x03))
+        self.port.write(bchar(0x03))
         self.timeout(0.1)
         return self.response(1)
+
+    def cs_low(self):
+        self.port.write(bchar(0x04))
+        self.timeout(0.1)
+        return self.response(1)
+
+    def cs_high(self):
+        self.port.write(bchar(0x05))
+        self.timeout(0.1)
+        return self.response(1)
+
+    def read_byte(self):
+        self.port.write(bchar(0x06))
+        self.timeout(0.1)
+        return self.response(1, True)
 
     def read_bit(self):
-        self.port.write(chr(0x07))
+        self.port.write(bchar(0x07))
         self.timeout(0.1)
-        return self.response(1)
+        return self.response(1, False)
 
     def peek(self):
-        self.port.write(chr(0x08))
+        self.port.write(bchar(0x08))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_tick(self):
-        self.port.write(chr(0x09))
+        self.port.write(bchar(0x09))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_low(self):
-        self.port.write(chr(0x0a))
+        self.port.write(bchar(0x0a))
         self.timeout(0.1)
         return self.response(1)
 
     def clock_high(self):
-        self.port.write(chr(0x0b))
+        self.port.write(bchar(0x0b))
         self.timeout(0.1)
         return self.response(1)
 
     def data_low(self):
-        self.port.write(chr(0x0c))
+        self.port.write(bchar(0x0c))
         self.timeout(0.1)
         return self.response(1)
 
     def data_high(self):
-        self.port.write(chr(0x0d))
+        self.port.write(bchar(0x0d))
+        self.timeout(0.1)
+        return self.response(1)
+
+    # NOTE: Untested. Not clear if it returns 0x01 for each bit or byte,
+    # it looks like there are some typos in the documentation.
+    def bulk_bits(self, byte, n_bits):
+        if n_bits < 1 or n_bits > 8:
+            raise ValueError('Can only send 1 through 8 bits')
+        if type(byte) is str:
+            byte = ord(byte[0])
+        byte_val = byte >> (8 - n_bits)
+        self.port.write(bchar(0b00110000 | (n_bits - 1)))
+        self.port.write(bchar(byte_val))
         self.timeout(0.1)
         return self.response(1)
 
     def wire_cfg(self, pins = 0):
-        self.port.write(chr(0x80 | pins))
+        """1000wxyz – Config, w=HiZ/3.3v, x=2/3wire, y=msb/lsb, z=not used"""
+        self.port.write(bchar(0x80 | pins))
+        self.timeout(0.1)
+        return self.response(1)
+
+    def peripherals_cfg(self, flags=0):
+        """0100wxyz – Configure peripherals w=power, x=pullups, y=AUX, z=CS"""
+        self.port.write(bchar(0b01000000 | flags))
+        self.timeout(0.1)
+        return self.response(1)
+
+    def speed_cfg(self, speed=0):
+        """011000xx – Set speed, 3=~400kHz, 2=~100kHz, 1=~50kHz, 0=~5kHz"""
+        self.port.write(bchar(0b1100000 | speed))
         self.timeout(0.1)
         return self.response(1)
 
@@ -134,6 +181,6 @@ class RawWire(BusPirate):
     # (make it similar to my configure_peripherals)
 
     def bulk_clock_ticks(self, ticks = 1):
-        self.port.write(chr(0x20 | (ticks - 1)))
+        self.port.write(bchar(0x20 | (ticks - 1)))
         self.timeout(0.1)
         return self.response(1)
