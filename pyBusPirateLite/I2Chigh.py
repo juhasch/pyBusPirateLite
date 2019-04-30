@@ -46,25 +46,24 @@ class I2Chigh(I2C):
 
     def get_byte(self, i2caddr, addr):
         """ Read one byte from address addr """
-        self.send_start_bit()
-        stat = self.bulk_trans(2, [i2caddr << 1, addr])
-        self.send_start_bit()
-        stat += self.bulk_trans(1, [i2caddr << 1 | 1])
+        self.start()
+        stat = self.transfer([i2caddr << 1, addr])
+        self.start()
+        stat += self.transfer([i2caddr << 1 | 1])
         r = self.read_byte()
-        self.send_nack()
-        self.send_stop_bit()
+        self.nack()
+        self.stop()
         if stat.find(chr(0x01)) != -1:
             raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
         return ord(r)
 
     def set_byte(self, i2caddr, addr, value):
         """ Write one byte to address addr """
-        self.send_start_bit()
-        stat = self.bulk_trans(3, [i2caddr << 1, addr, value])
-        self.send_stop_bit()
+        self.start()
+        stat = self.transfer([i2caddr << 1, addr, value])
+        self.stop()
         if stat.find(chr(0x01)) != -1:
             raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
-
 
     def command(self, i2caddr, cmd):
         """ Writes one byte command to slave """
