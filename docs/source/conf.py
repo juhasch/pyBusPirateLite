@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'pyBusPirateLite'
-copyright = '2018, Juergen Hasch'
+copyright = '2019, Juergen Hasch'
 author = 'Jürgen Hasch'
 
 # The version info for the project you're documenting, acts as replacement for

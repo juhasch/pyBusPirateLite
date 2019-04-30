@@ -251,9 +251,10 @@ class I2C(BusPirate):
         operations happen once the completed command has been passed to the Bus Pirate. Any write data is internally
         buffered by the Bus Pirate. At the end of the operation, any read data is returned from the buffer, be aware
         that the write buffer is re-used as the read buffer, as such any write data needs to be re-loaded if the command
-         is re-executed.
+        is re-executed.
 
         Write then read command format
+        ------------------------------
         command (1byte)	number of write bytes (2bytes)	number of read bytes (2bytes)	bytes to write (0-4096bytes)
         Return data format
         success/0x01 (1byte)	bytes read from I2C (0-4096bytes)
@@ -264,16 +265,17 @@ class I2C(BusPirate):
         Next, send the bytes to write. Bytes are buffered in the Bus Pirate, there is no acknowledgment that a byte is
         received.
         The Bus Pirate sends an I2C start bit, then all write bytes are sent at once. If an I2C write is not ACKed by a
-         slave device, then the operation will abort and the Bus Pirate will return 0x00 now
+        slave device, then the operation will abort and the Bus Pirate will return 0x00 now
         Read starts immediately after the write completes. Bytes are read from I2C into a buffer at max I2C speed
         (no waiting for UART). All read bytes are ACKed, except the last byte which is NACKed, this process is handled
-         internally between the Bus Pirate and the I2C device
+        internally between the Bus Pirate and the I2C device
         At the end of the read process, the Bus Pirate sends an I2C stop
         The Bus Pirate now returns 0x01 to the PC, indicating success
         Finally, the buffered read bytes are returned to the PC
         Except as described above, there is no acknowledgment that a byte is received.
 
         Example
+        -------
         Here's an example of a read from a typical 24AA EEPROM:
 
         PC------>Bus Pirate

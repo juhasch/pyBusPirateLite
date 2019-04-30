@@ -70,8 +70,7 @@ I2C::
     i2c = I2C()
     i2c.speed = '400kHz'
     i2c.configure(power=True)
-    i2c.transfer([0x5x])
-
+    i2c.write_then_read(2,0, [0xec, 0xf6])
 
 .. image:: images/i2c.png
 
