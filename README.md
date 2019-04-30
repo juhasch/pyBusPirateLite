@@ -22,7 +22,7 @@ For more information about the BusPirate see http://dangerousprototypes.com/docs
 Based on code from Garrett Berg <cloudform511@gmail.com>
 (http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/)
 
-**Note**: Python 3.6 is required, mainly due to the use if `f`-strings.
+**Note**: Python 3.6 is required, mainly due to the use of `f`-strings.
 
 Examples
 --------
@@ -55,11 +55,12 @@ bb.pins = bb.PIN_AUX  # set aux pin = 1
 
 ### I2C
 ```python
-from pyBusPirateLite.I2C import *
-
+from pyBusPirateLite.I2C import I2C
 i2c = I2C()
-i2c.pins = PIN_POWER | PIN_CS 
-i2c.speed = '50kHz'
+i2c.speed = '400kHz'
+i2c.configure(power=True)
+i2c.write_then_read(2,0, [0xec, 0xf6])  # set write register
+i2c.write_then_read(1,1,[ 0xed])        # read from register
 ```
 
 ### Detect port

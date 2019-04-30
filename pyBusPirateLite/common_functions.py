@@ -26,7 +26,7 @@ def init_i2c(bp_device, power=True, pullups=True, speed=I2C.SPEEDS['50kHz']):
     """initializes i2c mode with some common settings hardwired
 
     Parameters
-    ---------
+    ----------
     bp_device
         Bus pirate device
     power : bool
