@@ -22,7 +22,7 @@ For more information about the BusPirate see http://dangerousprototypes.com/docs
 Based on code from Garrett Berg <cloudform511@gmail.com>
 (http://dangerousprototypes.com/2011/03/14/new-version-of-pybuspiratelite-python-library/)
 
-**Note**: Python 3.6 is required, mainly due to the use if `f`-strings.
+**Note**: Python 3.6 is required, mainly due to the use of `f`-strings.
 
 Examples
 --------
