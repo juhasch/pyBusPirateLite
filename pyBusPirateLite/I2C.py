@@ -204,6 +204,8 @@ class I2C(BusPirate):
         if resp[0] != '\x01':
             raise ValueError("Could not transfer I2C data")
 
+        return resp[1:]
+
     @property
     def speed(self):
         """ Return current I2C clock speed
