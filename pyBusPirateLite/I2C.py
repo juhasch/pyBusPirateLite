@@ -329,16 +329,19 @@ class I2C(BusPirate):
 
 
         """
-        self.write(0x09)
-        if cmd in [0x00, 0x01, 0x02, 0x03, 0x10, 0x20]:
-            self.write(cmd)
-        else:
+        if cmd not in (0x00, 0x01, 0x02, 0x03, 0x10, 0x20):
             raise ProtocolError('Illegal extended AUX command')
-        resp = self.response(20, True)
+        self.write(0x09)
+        if self.response(1, binary=True) != b'\x01':
+            raise ProtocolError('Error in extended AUX command')
+        self.write(cmd)
+        resp = self.response(20, binary=True)
 
-        if resp[0] != 1:
-            raise ProtocolError(f'Error in extended AUX command {resp}')
-        return resp[1:-1].decode('ASCII')
+        # firmware ~7.1 responds to the command with text followed by another
+        # 0x01 confirmation. this behaivor was not well documented on the wiki
+        if resp[-1] != 0x01:
+            raise ProtocolError('Error in extended AUX command')
+        return resp[:-1].decode('ASCII')
 
     def configure(self, power=False, pullup=False, aux=False, cs=False):
         """Configure peripherals w=power, x=pullups, y=AUX, z=CS
