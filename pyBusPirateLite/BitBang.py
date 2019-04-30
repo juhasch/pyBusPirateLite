@@ -56,7 +56,7 @@ class BitBang(BusPirate):
 
         self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0  **TODO**
         self.timeout(self.minDelay * 10)
-        return ord(self.response(1, True)) & 0x1f
+        return ord(self.response(1, binary=True)) & 0x1f
 
     @outputs.setter
     def outputs(self, pinlist=0):
@@ -84,7 +84,7 @@ class BitBang(BusPirate):
         self.pins_direction = pinlist & 0x1f
         self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
         self.timeout(self.minDelay * 10)
-        self.response(1, True)
+        self.response(1, binary=True)
 
     @property
     def pins(self):
@@ -98,7 +98,7 @@ class BitBang(BusPirate):
         """
         self.write(0x80 | (self.pins_state & 0x7f))
         self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, True)) & 0x7f
+        self.pins_state = ord(self.response(1, binary=True)) & 0x7f
         return self.pins_state
 
     @pins.setter
@@ -122,7 +122,7 @@ class BitBang(BusPirate):
         self.pins_state = pinlist & 0x7f
         self.write(0x80 | self.pins_state)
         self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, True)) & 0x7f
+        self.pins_state = ord(self.response(1, binary=True)) & 0x7f
 
     @property
     def adc(self):
@@ -135,7 +135,7 @@ class BitBang(BusPirate):
         """
         self.write(0x14)
         self.timeout(self.minDelay)
-        ret = self.response(2, True)
+        ret = self.response(2, binary=True)
         voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
         return voltage
@@ -151,7 +151,7 @@ class BitBang(BusPirate):
         self.write(0x15)
 
     def get_next_adc_voltage(self):
-        ret = self.response(2, True)
+        ret = self.response(2, binary=True)
         voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
 
@@ -162,7 +162,7 @@ class BitBang(BusPirate):
             self.recurse_end()
             return voltage
 
-        self.response(1, True)        # get an additional byte and then flush
+        self.response(1, binary=True) # get an additional byte and then flush
         self.port.flushInput()
         return self.recurse(self.get_next_adc_voltage)
 
@@ -268,12 +268,12 @@ class BitBang(BusPirate):
         self.write((period >> 8) & 0xFF)
         self.write(period & 0xFF)
         self.timeout(self.minDelay * 10)
-        if self.response(1, True) != '\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not setup PWM mode")
 
     def disable_PWM(self):
         """ Clear/disable PWM """
         self.write(0x13)
         self.timeout(self.minDelay * 10)
-        if self.response(1, True) != '\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not disable PWM mode")

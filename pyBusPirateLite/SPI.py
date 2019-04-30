@@ -130,7 +130,7 @@ class SPI(BusPirate):
         * AUX is always a normal pin output (0=GND, 1=3.3volts).
         """
         self.write(0x40 | (cfg & 0x0f))
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not set SPI pins")
         self._pins = cfg
 
@@ -169,7 +169,7 @@ class SPI(BusPirate):
         """
         self.write(0x80 | cfg)
         self.timeout(self.minDelay)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not set SPI configuration")
         self._config = cfg
 
@@ -210,9 +210,9 @@ class SPI(BusPirate):
         self.write(0x10 + length-1)
         for data in txdata:
             self.write(data)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not transfer SPI data")
-        rxdata = self.response(length, True)
+        rxdata = self.response(length, binary=True)
         return rxdata
 
     def write_then_read(self, numtx, numrx, txdata, cs=True):
@@ -276,7 +276,7 @@ class SPI(BusPirate):
         self.write(numrx & 0xff)
         for data in txdata:
             self.write(data)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError("Error transmitting data")
 
     @property
@@ -301,7 +301,7 @@ class SPI(BusPirate):
             self.write(0x02)
         else:
             self.write(0x03)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError("CS could not be set")
         self._cs = value
 
@@ -329,7 +329,7 @@ class SPI(BusPirate):
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)
 
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Could not set SPI speed')
         self._speed = frequency
 
@@ -369,5 +369,5 @@ class SPI(BusPirate):
         else:
             cmd = 0x0d
         self.write(cmd)
-        if self.response(1, True) != b'\x01':
+        if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Could not set SPI sniff mode')
