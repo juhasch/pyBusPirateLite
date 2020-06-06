@@ -20,6 +20,7 @@
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from time import sleep
+from typing import Dict
 
 import serial
 
@@ -257,6 +258,10 @@ class BusPirate:
     def __exit__(self, exc_type, exc_val, exc_tb):
         """ Disconnect bus pirate when exiting"""
         self.disconnect()
+    
+    def get_port_settings(self) -> Dict:
+        """Return the current serial port settings dict."""
+        self.port.get_settings()
 
     def timeout(self, timeout = 0.1):
         sleep(timeout)
