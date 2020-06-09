@@ -1,24 +1,24 @@
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
-# 
+#
 # Overhauled and edited by Garrett Berg on 2011- 1 - 22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
-# 
+#
 # Updated and made Python3 compatible by Juergen Hasch, 20160501
 # Copyright 2016 Juergen Hasch <python@elbonia.de>
-# 
+#
 # This file is part of pyBusPirate.
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -26,14 +26,16 @@ from .base import BPError, BusPirate, ProtocolError
 
 
 class SPI(BusPirate):
-    SPEEDS = {'30kHz' : 0b000,
-             '125kHz': 0b001,
-             '250kHz': 0b010,
-             '1MHz'  : 0b011,
-             '2MHz'  : 0b100,
-             '2.6MHz': 0b101,
-             '4MHz'  : 0b110,
-             '8MHz'  : 0b111}
+    SPEEDS = {
+        "30kHz": 0b000,
+        "125kHz": 0b001,
+        "250kHz": 0b010,
+        "1MHz": 0b011,
+        "2MHz": 0b100,
+        "2.6MHz": 0b101,
+        "4MHz": 0b110,
+        "8MHz": 0b111,
+    }
 
     CFG_SAMPLE = 0x01
     CFG_CLK_EDGE = 0x02
@@ -45,7 +47,7 @@ class SPI(BusPirate):
     PIN_PULLUP = 4
     PIN_POWER = 8
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname="", speed=115200, timeout=0.1, connect=True):
         """ Provide high-speed access to the Bus Pirate SPI hardware
 
         Parameters
@@ -88,16 +90,16 @@ class SPI(BusPirate):
             Could not enter SPI mode
 
         """
-        if self.mode == 'spi':
+        if self.mode == "spi":
             return
-        if self.mode != 'bb':
-           super(SPI, self).enter()
+        if self.mode != "bb":
+            super(SPI, self).enter()
 
         self.write(0x01)
         if self.response(4) == "SPI1":
-            self.mode = 'spi'
+            self.mode = "spi"
             return
-        raise BPError('Could not enter SPI mode')
+        raise BPError("Could not enter SPI mode")
 
     @property
     def modestring(self):
@@ -129,8 +131,8 @@ class SPI(BusPirate):
         * CS pin always follows the current HiZ pin configuration.
         * AUX is always a normal pin output (0=GND, 1=3.3volts).
         """
-        self.write(0x40 | (cfg & 0x0f))
-        if self.response(1, binary=True) != b'\x01':
+        self.write(0x40 | (cfg & 0x0F))
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not set SPI pins")
         self._pins = cfg
 
@@ -169,7 +171,7 @@ class SPI(BusPirate):
         """
         self.write(0x80 | cfg)
         self.timeout(self.minDelay)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not set SPI configuration")
         self._config = cfg
 
@@ -206,11 +208,11 @@ class SPI(BusPirate):
         """
         length = len(txdata)
         if length > 16:
-            ValueError('A maximum of 16 bytes can be sent')
-        self.write(0x10 + length-1)
+            ValueError("A maximum of 16 bytes can be sent")
+        self.write(0x10 + length - 1)
         for data in txdata:
             self.write(data)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not transfer SPI data")
         rxdata = self.response(length, binary=True)
         return rxdata
@@ -270,13 +272,13 @@ class SPI(BusPirate):
             self.write(0x04)
         else:
             self.write(0x05)
-        self.write(numtx >> 8 & 0xff)
-        self.write(numtx & 0xff)
-        self.write(numrx >> 8 & 0xff)
-        self.write(numrx & 0xff)
+        self.write(numtx >> 8 & 0xFF)
+        self.write(numtx & 0xFF)
+        self.write(numrx >> 8 & 0xFF)
+        self.write(numrx & 0xFF)
         for data in txdata:
             self.write(data)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ProtocolError("Error transmitting data")
 
         return self.response(numrx, binary=True)
@@ -303,7 +305,7 @@ class SPI(BusPirate):
             self.write(0x02)
         else:
             self.write(0x03)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ProtocolError("CS could not be set")
         self._cs = value
 
@@ -328,11 +330,11 @@ class SPI(BusPirate):
         try:
             clock = self.SPEEDS[frequency]
         except KeyError:
-            raise ValueError('Clock speed not supported')
+            raise ValueError("Clock speed not supported")
         self.write(0x60 | clock)
 
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Could not set SPI speed')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Could not set SPI speed")
         self._speed = frequency
 
     def sniffer(self, cs):
@@ -367,9 +369,9 @@ class SPI(BusPirate):
         More detailed notes on the SPI sniffer in the SPI user terminal documentation.
         """
         if cs is True:
-            cmd = 0x0e
+            cmd = 0x0E
         else:
-            cmd = 0x0d
+            cmd = 0x0D
         self.write(cmd)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Could not set SPI sniff mode')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Could not set SPI sniff mode")

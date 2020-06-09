@@ -2,17 +2,17 @@
 # Copyright 2010 Ondrej Caletka <ondrej.caletka@gmail.com>
 #
 # This file is part of pyBusPirate.
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -21,9 +21,11 @@ from .I2C import I2C
 
 """ enter binary mode """
 
+
 class I2Chigh(I2C):
     """High level I2C transactions, not included in uc class"""
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+
+    def __init__(self, portname="", speed=115200, timeout=0.1, connect=True):
         """
         This constructor by default conntects to the first buspirate it can
         find. If you don't want that, set connect to False.
@@ -98,4 +100,5 @@ class I2Chigh(I2C):
             raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
         return ord(rh) * 256 + ord(rl)
 
-'''some standard functions for i2c communication'''
+
+"""some standard functions for i2c communication"""

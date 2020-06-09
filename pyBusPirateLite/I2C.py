@@ -1,21 +1,21 @@
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
-# 
+#
 # Overhauled and edited by Garrett Berg on 2011- 1 - 22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
-# 
+#
 # This file is part of pyBusPirate.
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -25,15 +25,11 @@ from .base import BPError, BusPirate, ProtocolError
 class I2C(BusPirate):
     """ Provide access to the Bus Pirate I2C interface"""
 
-    SPEEDS = {'400kHz': 0x03,
-              '100kHz': 0x02,
-              '50kHz' : 0x01,
-              '5kHz'  : 0x00}
+    SPEEDS = {"400kHz": 0x03, "100kHz": 0x02, "50kHz": 0x01, "5kHz": 0x00}
 
-    pin_mapping = {'AUX': 0b10,
-                    'CS': 0b01}
+    pin_mapping = {"AUX": 0b10, "CS": 0b01}
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname="", speed=115200, timeout=0.1, connect=True):
         """
         This constructor by default conntects to the first buspirate it can
         find. If you don't want that, set connect to False.
@@ -55,7 +51,7 @@ class I2C(BusPirate):
         """
         super().__init__(portname, speed, timeout, connect)
         self.i2c_speed = None
-        
+
     def enter(self):
         """ Enter I2C mode
 
@@ -68,20 +64,20 @@ class I2C(BusPirate):
         BPError
             If I2C mode could not be entered
         """
-        if self.mode == 'i2c':
+        if self.mode == "i2c":
             return
-        if self.mode != 'bb':
+        if self.mode != "bb":
             super(I2C, self).enter()
 
         self.write(0x02)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "I2C1":
-            self.mode = 'i2c'
-            self.bp_port = 0b00         # two bit port
+            self.mode = "i2c"
+            self.bp_port = 0b00  # two bit port
             self.bp_config = 0b0000
             self.recurse_end()
             return
-        raise BPError('Could not enter I2C mode')
+        raise BPError("Could not enter I2C mode")
 
     @property
     def check_i2c(self):
@@ -101,7 +97,7 @@ class I2C(BusPirate):
         resp = self.response(20)
         if resp == "I2C1":
             return True
-        raise BPError(f'Not in I2C mode, response {resp}.')
+        raise BPError(f"Not in I2C mode, response {resp}.")
 
     def start(self):
         """ Send an I2C start bit
@@ -112,8 +108,8 @@ class I2C(BusPirate):
             Did not get expected response
         """
         self.write(0x02)
-        if self.response(1) != '\x01':
-            raise ProtocolError('Could not send I2C start bit')
+        if self.response(1) != "\x01":
+            raise ProtocolError("Could not send I2C start bit")
 
     def stop(self):
         """ Send an I2C stop bit
@@ -124,8 +120,8 @@ class I2C(BusPirate):
             Did not get expected response
         """
         self.write(0x03)
-        if self.response(1) != '\x01':
-            raise ProtocolError('Could not send I2C stop bit')
+        if self.response(1) != "\x01":
+            raise ProtocolError("Could not send I2C stop bit")
 
     def ack(self):
         """ Send ACK
@@ -138,8 +134,8 @@ class I2C(BusPirate):
             Did not get expected response
         """
         self.write(0x06)
-        if self.response(1) != '\x01':
-            raise ProtocolError('Could not send ACK')
+        if self.response(1) != "\x01":
+            raise ProtocolError("Could not send ACK")
 
     def nack(self):
         """ Send NACK
@@ -153,8 +149,8 @@ class I2C(BusPirate):
             Did not get expected response
         """
         self.write(0x07)
-        if self.response(1) != '\x01':
-            raise ProtocolError('Could not send NACK')
+        if self.response(1) != "\x01":
+            raise ProtocolError("Could not send NACK")
 
     def sniffer(self):
         """ Sniff traffic on an I2C bus.
@@ -165,7 +161,7 @@ class I2C(BusPirate):
         Sniffed traffic is encoded according to the table above. Data bytes are escaped with the '\' character.
         Send a single byte to exit, Bus Pirate responds 0x01 on exit.
         """
-        self.write(0x0f)
+        self.write(0x0F)
         resp = self.response(64)
         return resp
 
@@ -195,13 +191,13 @@ class I2C(BusPirate):
         """
         length = len(txdata)
         if length > 16:
-            ValueError('A maximum of 16 bytes can be sent')
-        self.write(0x10 + length-1)
+            ValueError("A maximum of 16 bytes can be sent")
+        self.write(0x10 + length - 1)
         for data in txdata:
             self.write(data)
 
-        resp = self.response(length+1)
-        if resp[0] != '\x01':
+        resp = self.response(length + 1)
+        if resp[0] != "\x01":
             raise ValueError("Could not transfer I2C data")
 
         return resp[1:]
@@ -234,11 +230,11 @@ class I2C(BusPirate):
         try:
             clock = self.SPEEDS[frequency]
         except KeyError:
-            raise ValueError('Clock speed not supported')
+            raise ValueError("Clock speed not supported")
         self.write(0x60 | clock)
 
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Could not set IC2 speed')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Could not set IC2 speed")
         self.i2c_speed = frequency
 
     def write_then_read(self, numtx, numrx, txdata):
@@ -296,14 +292,14 @@ class I2C(BusPirate):
         0x?? - read position 256 - the requested number of bytes read from the I2C bus
         """
         self.write(0x08)
-        self.write(numtx >> 8 & 0xff)
-        self.write(numtx & 0xff)
-        self.write(numrx >> 8 & 0xff)
-        self.write(numrx & 0xff)
+        self.write(numtx >> 8 & 0xFF)
+        self.write(numtx & 0xFF)
+        self.write(numrx >> 8 & 0xFF)
+        self.write(numrx & 0xFF)
         for data in txdata:
             self.write(data)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Error in transmission')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Error in transmission")
 
         return self.response(numrx, binary=True)
 
@@ -332,18 +328,18 @@ class I2C(BusPirate):
 
         """
         if cmd not in (0x00, 0x01, 0x02, 0x03, 0x10, 0x20):
-            raise ProtocolError('Illegal extended AUX command')
+            raise ProtocolError("Illegal extended AUX command")
         self.write(0x09)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Error in extended AUX command')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Error in extended AUX command")
         self.write(cmd)
         resp = self.response(20, binary=True)
 
         # firmware ~7.1 responds to the command with text followed by another
         # 0x01 confirmation. this behaivor was not well documented on the wiki
         if resp[-1] != 0x01:
-            raise ProtocolError('Error in extended AUX command')
-        return resp[:-1].decode('ASCII')
+            raise ProtocolError("Error in extended AUX command")
+        return resp[:-1].decode("ASCII")
 
     def configure(self, power=False, pullup=False, aux=False, cs=False):
         """Configure peripherals w=power, x=pullups, y=AUX, z=CS
@@ -366,5 +362,5 @@ class I2C(BusPirate):
         if cs:
             data |= 0x01
         self.write(data)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Error configuring pins')
+        if self.response(1, binary=True) != b"\x01":
+            raise ProtocolError("Error configuring pins")

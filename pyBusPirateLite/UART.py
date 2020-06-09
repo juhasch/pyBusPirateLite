@@ -1,27 +1,27 @@
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
-# 
+#
 # Overhauled and edited by Garrett Berg on 2011- 1 - 22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
-# 
+#
 # This file is part of pyBusPirate.
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from .base import BPError, BusPirate
 
-FOSC = (32000000 / 2)
+FOSC = 32000000 / 2
 
 
 class UARTCfg:
@@ -45,7 +45,7 @@ class UARTSpeed:
 
 
 class UART(BusPirate):
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname="", speed=115200, timeout=0.1, connect=True):
         """ Provide the Bus Pirate UART interface
 
         Parameters
@@ -75,20 +75,20 @@ class UART(BusPirate):
         BPError
             Could not enter UART mode
         """
-        if self.mode == 'uart':
+        if self.mode == "uart":
             return
-        if self.mode != 'bb':
+        if self.mode != "bb":
             super(UART, self).enter()
         self.write(0x03)
         self.timeout(self.minDelay * 10)
         if self.response(4) == "ART1":
-            self.mode = 'uart'
-            self.bp_port = 0b00         # two bit port
+            self.mode = "uart"
+            self.bp_port = 0b00  # two bit port
             self.bp_config = 0b0000
             self.recurse_end()
             return
         self.recurse_flush(self.enter)
-        raise BPError('Could not enter UART mode')
+        raise BPError("Could not enter UART mode")
 
     @property
     def modestring(self):
@@ -107,7 +107,7 @@ class UART(BusPirate):
             self.write(0x03)
         else:
             self.write(0x02)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not set echo mode")
         self._echo = mode
 
@@ -121,8 +121,8 @@ class UART(BusPirate):
         clock divider = 2, BRGH=1) . Bus Pirate responds 0x01 to each byte. Settings take effect immediately.
         """
         BRG = (FOSC // (4 * baud)) - 1
-        BRGH = ((BRG >> 8) & 0xFF)
-        BRGL = (BRG & 0xFF)
+        BRGH = (BRG >> 8) & 0xFF
+        BRGL = BRG & 0xFF
         self.write(0x03)
         self.write(BRGH)
         self.write(BRGL)
@@ -140,7 +140,7 @@ class UART(BusPirate):
 
         Starts a transparent UART bridge using the current configuration. Unplug the Bus Pirate to exit.
         """
-        self.write(0x0f)
+        self.write(0x0F)
         self.timeout(0.1)
         self.response(1, binary=True)
 
@@ -150,6 +150,6 @@ class UART(BusPirate):
         return self.response(1, binary=True)
 
     def read_cfg(self):
-        self.write(0xd0)
+        self.write(0xD0)
         self.timeout(0.1)
         return self.response(1, binary=True)

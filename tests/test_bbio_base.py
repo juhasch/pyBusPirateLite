@@ -2,7 +2,6 @@
 from time import sleep
 
 from nose.tools import raises
-
 from pyBusPirateLite.BBIO_base import *
 from pyBusPirateLite.BitBang import BitBang
 

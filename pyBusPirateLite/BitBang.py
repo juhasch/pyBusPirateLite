@@ -1,19 +1,19 @@
 # Created by Sean Nelson on 2009-10-14.
 # Copyright 2009 Sean Nelson <audiohacked@gmail.com>
-# 
+#
 # Overhauled and edited by Garrett Berg on 2011- 1 - 22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
@@ -23,7 +23,7 @@ from .base import BusPirate, ProtocolError
 class BitBang(BusPirate):
     """ Provide access to the Bus Pirate bitbang mode"""
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname="", speed=115200, timeout=0.1, connect=True):
         """
         This constructor by default conntects to the first buspirate it can
         find. If you don't want that, set connect to False.
@@ -54,9 +54,9 @@ class BitBang(BusPirate):
 
         """
 
-        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0  **TODO**
+        self.write(0x40 | ~self.pins_direction & 0x1F)  # map input->1, output->0  **TODO**
         self.timeout(self.minDelay * 10)
-        return ord(self.response(1, binary=True)) & 0x1f
+        return ord(self.response(1, binary=True)) & 0x1F
 
     @outputs.setter
     def outputs(self, pinlist=0):
@@ -81,8 +81,8 @@ class BitBang(BusPirate):
             Current state of the pins
             PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
         """
-        self.pins_direction = pinlist & 0x1f
-        self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
+        self.pins_direction = pinlist & 0x1F
+        self.write(0x40 | ~self.pins_direction & 0x1F)  # map input->1, output->0
         self.timeout(self.minDelay * 10)
         self.response(1, binary=True)
 
@@ -96,9 +96,9 @@ class BitBang(BusPirate):
             Current state of the pins
             PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
         """
-        self.write(0x80 | (self.pins_state & 0x7f))
+        self.write(0x80 | (self.pins_state & 0x7F))
         self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, binary=True)) & 0x7f
+        self.pins_state = ord(self.response(1, binary=True)) & 0x7F
         return self.pins_state
 
     @pins.setter
@@ -119,10 +119,10 @@ class BitBang(BusPirate):
             PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
 
         """
-        self.pins_state = pinlist & 0x7f
+        self.pins_state = pinlist & 0x7F
         self.write(0x80 | self.pins_state)
         self.timeout(self.minDelay * 10)
-        self.pins_state = ord(self.response(1, binary=True)) & 0x7f
+        self.pins_state = ord(self.response(1, binary=True)) & 0x7F
 
     @property
     def adc(self):
@@ -162,7 +162,7 @@ class BitBang(BusPirate):
             self.recurse_end()
             return voltage
 
-        self.response(1, binary=True) # get an additional byte and then flush
+        self.response(1, binary=True)  # get an additional byte and then flush
         self.port.flushInput()
         return self.recurse(self.get_next_adc_voltage)
 
@@ -172,9 +172,10 @@ class BitBang(BusPirate):
         self.port.flushInput()
         for i in range(5):
             self.write(0x00)
-            #r, w, e = select.select([self.port], [], [], 0.01);
+            # r, w, e = select.select([self.port], [], [], 0.01);
             r = self.response(1, binary=True)
-            if r: break;
+            if r:
+                break
         self.port.flushInput()
         self.enter_bb()
         return 1
@@ -209,14 +210,14 @@ class BitBang(BusPirate):
             self.write(0x10)
         self.timeout(1)
         errors = self.response(1, binary=True)
-        self.write(0xff)
+        self.write(0xFF)
         resp = self.response(1, binary=True)
-        if resp != b'\x01':
-            raise ProtocolError('Self test did not return to bitbang mode')
+        if resp != b"\x01":
+            raise ProtocolError("Self test did not return to bitbang mode")
         self.timeout(self.minDelay)
         return ord(errors)
 
-    def enable_PWM(self, frequency, dutycycle=.5):
+    def enable_PWM(self, frequency, dutycycle=0.5):
         """ Enable PWM output 
 
         Parameters
@@ -238,7 +239,7 @@ class BitBang(BusPirate):
 
         """
         if dutycycle > 1:
-            raise ValueError('Duty cycle should be between 0 and 1')
+            raise ValueError("Duty cycle should be between 0 and 1")
         Fosc = 24e6
         Tcy = 2.0 / Fosc
         PwmPeriod = 1.0 / frequency
@@ -255,7 +256,7 @@ class BitBang(BusPirate):
             if PRy < (2 ** 16 - 1):
                 break  # valid value for PRy, keep values
         else:
-            raise ValueError('frequency requested is invalid')
+            raise ValueError("frequency requested is invalid")
 
         prescaler = Prescaler
         dutycycle = OCR
@@ -268,12 +269,12 @@ class BitBang(BusPirate):
         self.write((period >> 8) & 0xFF)
         self.write(period & 0xFF)
         self.timeout(self.minDelay * 10)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not setup PWM mode")
 
     def disable_PWM(self):
         """ Clear/disable PWM """
         self.write(0x13)
         self.timeout(self.minDelay * 10)
-        if self.response(1, binary=True) != b'\x01':
+        if self.response(1, binary=True) != b"\x01":
             raise ValueError("Could not disable PWM mode")

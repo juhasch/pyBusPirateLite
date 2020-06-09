@@ -3,26 +3,26 @@
 
 # Created by Garrett Berg on 2011-1-22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
-# 
+#
 # This file is part of pyBusPirate.
-# 
+#
 # pyBusPirate is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
-# 
+#
 # pyBusPirate is distributed in the hope that it will be useful,
 # but WITHOUT ANY WARRANTY; without even the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 # GNU General Public License for more details.
-# 
+#
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from .I2C import I2C
 
 
-def init_i2c(bp_device, power=True, pullups=True, speed=I2C.SPEEDS['50kHz']):
+def init_i2c(bp_device, power=True, pullups=True, speed=I2C.SPEEDS["50kHz"]):
     """initializes i2c mode with some common settings hardwired
 
     Parameters
@@ -51,7 +51,7 @@ def init_i2c(bp_device, power=True, pullups=True, speed=I2C.SPEEDS['50kHz']):
     return True
 
 
-def init_bb(bp_device, power='on', pullups='on'):
+def init_bb(bp_device, power="on", pullups="on"):
     """initializes bit bang mode with the most common settings
 
     Parameters
@@ -89,7 +89,7 @@ def sniff_i2c_devices(bp_device, power=False):
 
         for p in range(len(ack_sig)):
             ack_sig[p] = ord(ack_sig[p])
-         
+
         if 0 in ack_sig:
             working_addr += [n]
     return working_addr
