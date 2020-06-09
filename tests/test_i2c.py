@@ -1,3 +1,5 @@
+import pytest
+
 from pyBusPirateLite.I2C import I2C
 
 
@@ -25,29 +27,36 @@ def test_connect_on_init():
     assert i2c.mode == 'i2c'
 
 
+@pytest.mark.xfail
 def test_echo():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_manual_speed_cfg():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_begin_input():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_end_input():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_enter_bridge_mode():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def def_set_cfg():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_read_cfg():
-    pass
+    raise NotImplementedError()

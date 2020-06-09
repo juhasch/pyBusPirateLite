@@ -1,3 +1,5 @@
+import pytest
+
 from pyBusPirateLite.UART import UART
 
 
@@ -33,29 +35,36 @@ def test_modestring():
     uart.hw_reset()
 
 
+@pytest.mark.xfail
 def test_echo():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_manual_speed_cfg():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_begin_input():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_end_input():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_enter_bridge_mode():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def def_set_cfg():
-    pass
+    raise NotImplementedError()
 
 
+@pytest.mark.xfail
 def test_read_cfg():
-    pass
+    raise NotImplementedError()
