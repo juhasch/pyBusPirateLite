@@ -245,7 +245,7 @@ class BusPirate:
         try:
             self.port = serial.Serial(portname, speed, timeout=timeout)
         except serial.serialutil.SerialException:
-            raise IOError('Could not open port %s' % portname)
+            raise IOError(f'Could not open port {portname}')
         self.connected = True
         self.minDelay = 1 / speed
 

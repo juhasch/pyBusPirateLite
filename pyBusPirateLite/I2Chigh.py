@@ -54,7 +54,7 @@ class I2Chigh(I2C):
         self.nack()
         self.stop()
         if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+            raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
         return ord(r)
 
     def set_byte(self, i2caddr, addr, value):
@@ -63,7 +63,7 @@ class I2Chigh(I2C):
         stat = self.transfer([i2caddr << 1, addr, value])
         self.stop()
         if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+            raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
 
     def command(self, i2caddr, cmd):
         """ Writes one byte command to slave """
@@ -71,7 +71,7 @@ class I2Chigh(I2C):
         stat = self.bulk_trans(2, [i2caddr << 1, cmd])
         self.send_stop_bit()
         if stat[0] == chr(0x01):
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+            raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
 
     def set_word(self, i2caddr, addr, value):
         """ Writes two byte value (big-endian) to address addr """
@@ -81,7 +81,7 @@ class I2Chigh(I2C):
         stat = self.bulk_trans(4, [i2caddr << 1, addr, vh, vl])
         self.send_stop_bit()
         if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+            raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
 
     def get_word(self, i2caddr, addr):
         """ Reads two byte value (big-endian) from address addr """
@@ -95,7 +95,7 @@ class I2Chigh(I2C):
         self.send_nack()
         self.send_stop_bit()
         if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+            raise IOError(f"I2C command on address 0x{i2caddr:02x} not acknowledged!")
         return ord(rh) * 256 + ord(rl)
 
 '''some standard functions for i2c communication'''
