@@ -130,7 +130,7 @@ class I2C(BusPirate):
     def ack(self):
         """ Send ACK
 
-        Send an I2C ACK bit after reading a byte. Tells a slave device that you will read another byte.
+        Send an I2C ACK bit after reading a byte. Tells a subordinate device that you will read another byte.
 
         Raises
         ------
@@ -144,7 +144,7 @@ class I2C(BusPirate):
     def nack(self):
         """ Send NACK
 
-        Send an I2C NACK bit after reading a byte. Tells a slave device that you will stop reading,
+        Send an I2C NACK bit after reading a byte. Tells a subordinate device that you will stop reading,
         next bit should be an I2C stop bit.
 
         Raises
@@ -176,7 +176,7 @@ class I2C(BusPirate):
         once. Note that 0000 indicates 1 byte because there’s no reason to send 0.
 
         BP replies 0×01 to the bulk I2C command. After each data byte the Bus Pirate returns the ACK (0x00) or
-        NACK (0x01) bit from the slave device.
+        NACK (0x01) bit from the subordinate device.
 
         Parameters
         ----------
@@ -265,7 +265,7 @@ class I2C(BusPirate):
         Next, send the bytes to write. Bytes are buffered in the Bus Pirate, there is no acknowledgment that a byte is
         received.
         The Bus Pirate sends an I2C start bit, then all write bytes are sent at once. If an I2C write is not ACKed by a
-        slave device, then the operation will abort and the Bus Pirate will return 0x00 now
+        subordinate device, then the operation will abort and the Bus Pirate will return 0x00 now
         Read starts immediately after the write completes. Bytes are read from I2C into a buffer at max I2C speed
         (no waiting for UART). All read bytes are ACKed, except the last byte which is NACKed, this process is handled
         internally between the Bus Pirate and the I2C device
