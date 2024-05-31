@@ -157,7 +157,7 @@ class I2C(BusPirate):
             raise ProtocolError('Could not send NACK')
 
     def sniffer(self):
-        """ Sniff traffic on an I2C bus.
+        r""" Sniff traffic on an I2C bus.
 
         [/] - Start/stop bit
         \ - escape character precedes a data byte value
