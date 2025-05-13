@@ -24,14 +24,6 @@ from time import sleep
 import serial
 
 
-class BPError(IOError):
-    pass
-
-
-class ProtocolError(IOError):
-    pass
-
-
 class BusPirate:
     """Base class for all modes. This contains low-level functions for direct
     hardware access.
@@ -77,7 +69,9 @@ class BusPirate:
         self.bp_config = None
         self.bp_port = None
         self.bp_dir = None
-        self.portname = ''
+        self.portname = portname
+        self.speed = speed
+        self._timeout = timeout
         self.pins_state = None
         self.pins_direction = None
 
@@ -134,11 +128,13 @@ class BusPirate:
 
         Raises
         ------
-        IOError
+        ValueError
             If device is not connected
+        ValueError
+            If could not enter bitbang mode
         """
         if self.connected is not True:
-            raise IOError('Device not connected')
+            raise ValueError('Device not connected')
         self.timeout(self.minDelay * 10)
         self.port.flushInput()
         for i in range(10):
@@ -162,14 +158,14 @@ class BusPirate:
             self.bp_dir = 0x1F  # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
             self.port.flushInput()
             return True
-        raise BPError('Could not enter bitbang mode')
+        raise ValueError('Could not enter bitbang mode')
 
     def enter(self):
         """Enter bitbang mode.
            Will be overriden by other classes 
         """
         if self.mode == 'bb':
-            return
+            return True
         return self.enter_bb()
 
     def hw_reset(self):
@@ -199,104 +195,133 @@ class BusPirate:
         except ImportError:
             raise ImportError('Pyserial version with serial.tools.list_port required')
 
-        import serial
-
-        # the API in version 2 and 3 is different
-        if serial.VERSION[0] == '2':
-            ports = list_ports.comports()
-            for port in ports:
-                if len(port) == 3 and '0403:6001' in port[2]:
-                    return port[0]
-                if len(port) == 3 and 'VID_0403+PID_6001' in port[2]:
-                    return port[0]
-        else:
-            ports = list_ports.comports()
-            for port in ports:
-                if hasattr(port, 'pid') and hasattr(port, 'vid'):
-                    if port.vid == 1027 and port.pid == 24577:
-                        return port.device
+        for port in list_ports.comports():
+            if port.vid == 0x0403 and port.pid == 0x6001:
+                return port.device
+        return None
 
     def connect(self, portname='', speed=115200, timeout=0.1):
-        """Will try to automatically find a port regardless of os
+        """Connect to Bus Pirate.
 
-        Parameters
-        ----------
-        portname : str
-            Name of comport (e.g. /dev/ttyUSB0 or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
+        Args:
+            portname: Name of comport (e.g., '/dev/bus_pirate' or 'COM3')
+            speed: Communication speed (default: 115200)
+            timeout: Timeout in seconds to wait for reply
 
-        Raises
-        ------
-        ImportError
-            If helper function to find serial port is not available
-        IOError
-            If device could not be opened
+        Raises:
+            ValueError: If connection fails
         """
+        if portname:
+            self.portname = portname
+        else:
+            self.portname = self.get_port()
+            if not self.portname:
+                raise ValueError('No Bus Pirate found')
 
-        if portname == '':
-            portname = self.get_port()
-        if portname == '':
-            raise IOError('Could not autodetect a BusPirate device.')
-
-        self.portname = portname
         try:
-            self.port = serial.Serial(portname, speed, timeout=timeout)
-        except serial.serialutil.SerialException:
-            raise IOError('Could not open port %s' % portname)
-        self.connected = True
-        self.minDelay = 1 / speed
+            self.port = serial.Serial(
+                port=self.portname,
+                baudrate=speed,
+                timeout=timeout,
+                write_timeout=timeout,
+            )
+            self.connected = True
+            return True
+        except serial.SerialException as e:
+            raise ValueError(f'Failed to connect to Bus Pirate: {e}')
 
     def disconnect(self):
-        """ Disconnect bus pirate, close com port """
-        if self.port:
+        """Disconnect from Bus Pirate."""
+        if self.port and self.port.is_open:
             self.port.close()
+        self.connected = False
+        self.port = None
+
+    def __enter__(self):
+        """Context manager entry."""
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        """ Disconnect bus pirate when exiting"""
+        """Context manager exit."""
         self.disconnect()
 
     def timeout(self, timeout = 0.1):
-        sleep(timeout)
+        """Set timeout for read operations."""
+        if self.port:
+            self.port.timeout = timeout
+        self._timeout = timeout
+
+    @property
+    def timeout(self):
+        return self._timeout
 
     def write(self, value):
-        self.port.write(value.to_bytes(1, 'big'))
-        
-    def response(self, byte_count=1, binary=False):
-        """Request a number of bytes
-
-        Parameters
-        ----------
-        byte_count : int
-            Number of bytes to read
-        binary : bool
-            Return binary (True) or unicode values (False)
-        """
-        data = self.port.read(byte_count)
-        if binary is True:
-            return data
+        """Write data to Bus Pirate."""
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+        if isinstance(value, int):
+            self.port.write(value.to_bytes(1, 'big'))
         else:
-            return data.decode()
+            self.port.write(value)
+
+    def read(self, length=1):
+        """Read data from Bus Pirate."""
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+        return self.port.read(length)
+
+    def response(self, byte_count=1, binary=False):
+        """Read response from Bus Pirate."""
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+        data = self.port.read(byte_count)
+        if len(data) < byte_count:
+            raise TimeoutError("Read timeout")
+        if binary:
+            return data
+        return data.decode('ASCII')
 
     def recurse_end(self):
+        """End recursion."""
         self._attempts_ = 0
 
     def recurse(self, func, *args):
-        if self._attempts_ < 15:
-            self._attempts_ += 1
-            return func(*args)
-        raise IOError('bus pirate malfunctioning')
+        """Recurse function."""
+        self._attempts_ += 1
+        if self._attempts_ > 5:
+            self.recurse_end()
+            raise ValueError('Too many attempts')
+        return func(*args)
 
     def recurse_flush(self, func, *args):
-        if self._attempts_ < 15:
-            self._attempts_ += 1
-            for n in range(5):
-                self.write(0x00)
-                self.port.flushInput()
-            return func(*args)
-        raise IOError('bus pirate malfunctioning')
+        """Recurse function with flush."""
+        self.port.flushInput()
+        self.port.flushOutput()
+        return self.recurse(func, *args)
+
+    def reset(self):
+        """Reset Bus Pirate to binary mode.
+
+        Returns:
+            bool: True if successful
+
+        Raises:
+            ValueError: If reset fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        # Send 20 null bytes to reset
+        self.write(bytes([0x00] * 20))
+        self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:  # BBIO1
+            raise ValueError("Failed to reset Bus Pirate")
+
+        self.mode = 'bb'
+        return True
 
 
 """ General Commands for Higher-Level Modes.

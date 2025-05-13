@@ -1,4 +1,4 @@
-from pyBusPirateLite.SPI import CFG_IDLE, CFG_PUSH_PULL, SPI
+from pyBusPirateLite.SPI import SPI
 
 
 def test_init():
@@ -30,4 +30,13 @@ def test_connect_on_init():
 def test_modestring():
     spi = SPI()
     assert spi.modestring == 'SPI1'
+    spi.hw_reset()
+
+
+def test_config():
+    spi = SPI(connect=False)
+    spi.connect()
+    spi.enter()
+    spi.config = SPI.CFG_PUSH_PULL | SPI.CFG_IDLE
+    assert spi.config == (SPI.CFG_PUSH_PULL | SPI.CFG_IDLE)
     spi.hw_reset()

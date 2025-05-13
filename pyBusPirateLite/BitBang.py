@@ -17,31 +17,168 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import BusPirate, ProtocolError
+from __future__ import annotations
 
+from typing import List, Optional, Union, ClassVar
+
+from .base import BusPirate
+
+# Pin constants for BitBang mode
+PIN_CS    = 0b00001
+PIN_MISO  = 0b00010
+PIN_CLK   = 0b00100
+PIN_MOSI  = 0b01000
+PIN_AUX   = 0b10000
+PIN_POWER = 0b100000
+PIN_PULLUP = 0b1000000
 
 class BitBang(BusPirate):
-    """ Provide access to the Bus Pirate bitbang mode"""
+    """BitBang interface for Bus Pirate.
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
-        """
-        This constructor by default conntects to the first buspirate it can
-        find. If you don't want that, set connect to False.
+    This class provides access to the Bus Pirate's BitBang interface. It allows
+    direct control of the Bus Pirate's pins.
 
-        Parameters
-        ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
- 
-        Examples
-        --------
-        >>> bb = BitBang()
+    Attributes:
+        portname (str): Name of the serial port (e.g., '/dev/bus_pirate' or 'COM3')
+        speed (int): Communication speed in baud
+        timeout (float): Timeout in seconds for read operations
+        ser (serial.Serial): Serial port object
+        mode (str): Current mode of the Bus Pirate
+        connected (bool): Whether the Bus Pirate is connected
+    """
+
+    # Pin definitions
+    PIN_CS: ClassVar[int] = 0x01
+    PIN_MISO: ClassVar[int] = 0x02
+    PIN_CLK: ClassVar[int] = 0x04
+    PIN_MOSI: ClassVar[int] = 0x08
+    PIN_AUX: ClassVar[int] = 0x10
+    PIN_PULLUP: ClassVar[int] = 0x20
+    PIN_POWER: ClassVar[int] = 0x40
+
+    def __init__(
+        self,
+        portname: str = "",
+        speed: int = 115200,
+        timeout: float = 0.1,
+        connect: bool = True,
+    ) -> None:
+        """Initialize the BitBang interface.
+
+        Args:
+            portname: Name of the serial port (e.g., '/dev/bus_pirate' or 'COM3')
+            speed: Communication speed in baud (default: 115200)
+            timeout: Timeout in seconds for read operations (default: 0.1)
+            connect: Whether to connect immediately (default: True)
+
+        Raises:
+            ValueError: If connection fails
         """
         super().__init__(portname, speed, timeout, connect)
+
+    def enter(self) -> bool:
+        """Enter BitBang mode.
+
+        Returns:
+            bool: True if successful
+
+        Raises:
+            ValueError: If entering BitBang mode fails
+        """
+        if self.mode == 'bb':
+            return True
+        if self.mode != 'bb':
+            super(BitBang, self).enter()
+        self.write(0x00)
+        self.timeout(self.minDelay * 10)
+        if self.response(4) == "BBIO1":
+            self.mode = 'bb'
+            self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
+            self.bp_port = 0x00  # out_port similar to ports in microcontrollers
+            self.bp_dir = 0x1F  # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
+            self.port.flushInput()
+            return True
+        self.recurse_flush(self.enter)
+        raise ValueError('Could not enter BitBang mode')
+
+    def write(self, data: Union[bytes, List[int]]) -> None:
+        """Write data to the Bus Pirate.
+
+        Args:
+            data: Data to write (bytes or list of integers)
+
+        Raises:
+            IOError: If write fails
+        """
+        if isinstance(data, int):
+            if data > 0xFF:
+                raise IOError('Illegal extended AUX command')
+            self.port.write(bytes([data]))
+            return
+
+        if isinstance(data, list):
+            data = bytes(data)
+        self.port.write(data)
+
+    def read(self, length: int = 1) -> bytes:
+        """Read data from the Bus Pirate.
+
+        Args:
+            length: Number of bytes to read (default: 1)
+
+        Returns:
+            bytes: Read data
+
+        Raises:
+            IOError: If read fails
+        """
+        return self.port.read(length)
+
+    def configure(self, power: bool = False, pullup: bool = False) -> None:
+        """Configure BitBang interface.
+
+        Args:
+            power: Whether to enable power supply (default: False)
+            pullup: Whether to enable pullup resistors (default: False)
+
+        Raises:
+            IOError: If configuration fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        # Send config command
+        config = 0
+        if power:
+            config |= self.PIN_POWER
+        if pullup:
+            config |= self.PIN_PULLUP
+
+        self.write([0x80 | config])
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise IOError('Error configuring pins')
+
+        self.bp_config = config
+
+    def self_test(self) -> None:
+        """Run self test.
+
+        Raises:
+            IOError: If self test fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        # Send self test command
+        self.write(0x0F)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise IOError('Self test did not return to bitbang mode')
 
     @property
     def outputs(self):
@@ -212,7 +349,7 @@ class BitBang(BusPirate):
         self.write(0xff)
         resp = self.response(1, binary=True)
         if resp != b'\x01':
-            raise ProtocolError('Self test did not return to bitbang mode')
+            raise ValueError('Self test did not return to bitbang mode')
         self.timeout(self.minDelay)
         return ord(errors)
 

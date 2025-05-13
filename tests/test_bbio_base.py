@@ -1,19 +1,16 @@
 # -*- coding: utf-8 -*-
 from time import sleep
+import pytest
+# from pyBusPirateLite.BBIO_base import *
+from pyBusPirateLite.BitBang import BitBang, PIN_CS, PIN_MISO, PIN_MOSI, PIN_CLK, PIN_AUX
+from pyBusPirateLite.base import BusPirate
 
-from nose.tools import raises
 
-from pyBusPirateLite.BBIO_base import *
-from pyBusPirateLite.BitBang import BitBang
-
-
-@raises(TypeError)
 def test_outputs():
     """ Test if exception is raised when nothing is set yet """
     bb = BitBang()
-    bb.outputs
-    bb.disconnect()
-    bb.hw_reset()
+    with pytest.raises(TypeError):
+        _ = bb.outputs
 
 
 def test_pins_CS():
@@ -89,3 +86,63 @@ def test_pins_AUX():
     assert bb.outputs == PIN_AUX
     assert bb.pins == PIN_AUX
     bb.hw_reset()
+
+
+def test_init():
+    """Test initialization."""
+    bp = BusPirate(connect=False)
+    assert bp.portname == ''
+    assert bp.speed == 115200
+    assert bp.timeout == 0.1
+    assert not bp.connected
+    assert bp.mode is None
+
+
+def test_connect():
+    """Test connection."""
+    bp = BusPirate(connect=False)
+    with pytest.raises(ValueError):
+        bp.connect()
+
+
+def test_disconnect():
+    """Test disconnection."""
+    bp = BusPirate(connect=False)
+    bp.disconnect()
+    assert not bp.connected
+    assert bp.port is None
+
+
+def test_write():
+    """Test write."""
+    bp = BusPirate(connect=False)
+    with pytest.raises(ValueError):
+        bp.write([0x00])
+
+
+def test_read():
+    """Test read."""
+    bp = BusPirate(connect=False)
+    with pytest.raises(ValueError):
+        bp.read()
+
+
+def test_enter():
+    """Test enter."""
+    bp = BusPirate(connect=False)
+    with pytest.raises(ValueError):
+        bp.enter()
+
+
+def test_reset():
+    """Test reset."""
+    bp = BusPirate(connect=False)
+    with pytest.raises(ValueError):
+        bp.reset()
+
+
+def test_context_manager():
+    """Test context manager."""
+    with BusPirate(connect=False) as bp:
+        assert isinstance(bp, BusPirate)
+        assert not bp.connected

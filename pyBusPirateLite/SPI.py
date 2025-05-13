@@ -22,89 +22,334 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import BPError, BusPirate, ProtocolError
+from __future__ import annotations
+
+from typing import List, Optional, Union, ClassVar
+
+from .BBIO_base import BBIO_base
 
 
-class SPI(BusPirate):
-    SPEEDS = {'30kHz' : 0b000,
-             '125kHz': 0b001,
-             '250kHz': 0b010,
-             '1MHz'  : 0b011,
-             '2MHz'  : 0b100,
-             '2.6MHz': 0b101,
-             '4MHz'  : 0b110,
-             '8MHz'  : 0b111}
+class SPI(BBIO_base):
+    """SPI protocol class for Bus Pirate.
 
-    CFG_SAMPLE = 0x01
-    CFG_CLK_EDGE = 0x02
-    CFG_IDLE = 0x04
-    CFG_PUSH_PULL = 0x08
+    This class provides methods for SPI communication with the Bus Pirate.
+    It supports various SPI configurations including clock speed, clock polarity,
+    clock phase, and output type.
 
-    PIN_CS = 1
-    PIN_AUX = 2
-    PIN_PULLUP = 4
-    PIN_POWER = 8
+    Attributes
+    ----------
+    portname : str
+        Name of the serial port
+    speed : int
+        Communication speed in baud
+    timeout : float
+        Timeout in seconds for read operations
+    ser : serial.Serial
+        Serial port object
+    mode : str
+        Current mode ('spi')
+    connected : bool
+        Whether the device is connected
+    config : int
+        Current SPI configuration
+    speed_setting : int
+        Current SPI speed setting
+    """
+
+    # SPI commands
+    SPI_CMD_ENTER = 0x01
+    SPI_CMD_START = 0x02
+    SPI_CMD_STOP = 0x03
+    SPI_CMD_READ = 0x04
+    SPI_CMD_WRITE = 0x05
+    SPI_CMD_CONFIG = 0x06
+    SPI_CMD_WRITE_THEN_READ = 0x07
+
+    # SPI configuration bits
+    CFG_IDLE = 0x00
+    CFG_POWER = 0x08
+    CFG_PULLUP = 0x04
+    CFG_AUX = 0x02
+    CFG_CS = 0x01
+
+    # SPI speed settings
+    SPEED_30KHZ = 0x00
+    SPEED_125KHZ = 0x01
+    SPEED_250KHZ = 0x02
+    SPEED_1MHZ = 0x03
+    SPEED_2MHZ = 0x04
+    SPEED_2_6MHZ = 0x05
+    SPEED_4MHZ = 0x06
+    SPEED_8MHZ = 0x07
+
+    # Speed mapping
+    SPEEDS = {
+        '30kHz': SPEED_30KHZ,
+        '125kHz': SPEED_125KHZ,
+        '250kHz': SPEED_250KHZ,
+        '1MHz': SPEED_1MHZ,
+        '2MHz': SPEED_2MHZ,
+        '2.6MHz': SPEED_2_6MHZ,
+        '4MHz': SPEED_4MHZ,
+        '8MHz': SPEED_8MHZ
+    }
 
     def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
-        """ Provide high-speed access to the Bus Pirate SPI hardware
+        """Initialize SPI protocol.
 
         Parameters
         ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
-        connect : bool
-            Automatically connect to BusPirate (default) 
-
-        Example
-        -------
-        >>> from pyBusPirateLite.SPI import SPI
-        >>> spi = SPI()
-        >>> spi.pins = SPI.PIN_POWER | SPI.PIN_CS
-        >>> spi.config = SPI.CFG_PUSH_PULL | SPI.CFG_IDLE
-        >>> spi.speed = '1MHz'
-        >>> spi.cs = True
-        >>> data = spi.transfer( [0x82, 0x00])
-        >>> spi.cs = False
+        portname : str, optional
+            Name of the serial port, by default ''
+        speed : int, optional
+            Communication speed in baud, by default 115200
+        timeout : float, optional
+            Timeout in seconds for read operations, by default 0.1
+        connect : bool, optional
+            Whether to connect immediately, by default True
         """
-        self._config = None
-        self._speed = None
-        self._cs = None
-        self._pins = None
         super().__init__(portname, speed, timeout, connect)
+        self.config = self.CFG_IDLE
+        self.speed_setting = self.SPEED_30KHZ
+        # Only set protocol speed if self.port exists
+        if hasattr(self, 'port') and self.port:
+            self.speed = '1MHz'
 
-    def enter(self):
-        """ Enter raw SPI mode
+    def enter(self) -> bool:
+        """Enter SPI mode.
 
-        Once in raw bitbang mode, send 0x01 to enter raw SPI mode. The Bus Pirate responds 'SPIx',
-        where x is the raw SPI protocol version (currently 1). Get the version string at any time by sending 0x01 again.
+        Returns
+        -------
+        bool
+            True if successful
 
         Raises
         ------
-        BPError
-            Could not enter SPI mode
-
+        ValueError
+            If entering SPI mode fails
         """
         if self.mode == 'spi':
-            return
-        if self.mode != 'bb':
-           super(SPI, self).enter()
+            return True
 
-        self.write(0x01)
-        if self.response(4) == "SPI1":
-            self.mode = 'spi'
-            return
-        raise BPError('Could not enter SPI mode')
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
 
-    @property
-    def modestring(self):
-        """ Return mode version string """
-        self.write(0x01)
-        self.timeout(self.minDelay * 10)
-        return self.response(4)
+        # Send enter command
+        self.write(self.SPI_CMD_ENTER)
+        self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:  # SPI1
+            raise ValueError("Failed to enter SPI mode")
+
+        self.mode = 'spi'
+        return True
+
+    def config(self, speed: int = None, clock_polarity: bool = None,
+               clock_phase: bool = None, output_type: int = None) -> None:
+        """Configure SPI settings.
+
+        Parameters
+        ----------
+        speed : int, optional
+            SPI speed setting (SPEED_* constants), by default None
+        clock_polarity : bool, optional
+            Clock polarity (True = idle high), by default None
+        clock_phase : bool, optional
+            Clock phase (True = sample on trailing edge), by default None
+        output_type : int, optional
+            Output type (0 = 3.3V, 1 = open drain), by default None
+
+        Raises
+        ------
+        ValueError
+            If configuration fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Build configuration byte
+        config = 0x00
+        if speed is not None:
+            self.speed_setting = speed
+            config |= (speed & 0x07) << 5
+        if clock_polarity is not None:
+            config |= (1 if clock_polarity else 0) << 4
+        if clock_phase is not None:
+            config |= (1 if clock_phase else 0) << 3
+        if output_type is not None:
+            config |= (output_type & 0x01) << 2
+
+        # Send configuration
+        self.write(self.SPI_CMD_CONFIG)
+        self.write(config)
+        self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise ValueError("Failed to configure SPI")
+
+        self.config = config
+
+    def write_then_read(self, write_data: Union[bytes, bytearray, list],
+                       read_length: int = 0) -> bytes:
+        """Write data then read response.
+
+        Parameters
+        ----------
+        write_data : Union[bytes, bytearray, list]
+            Data to write
+        read_length : int, optional
+            Number of bytes to read, by default 0
+
+        Returns
+        -------
+        bytes
+            Read data
+
+        Raises
+        ------
+        ValueError
+            If write/read operation fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Send command
+        self.write(self.SPI_CMD_WRITE_THEN_READ)
+        self.write(len(write_data))
+        self.write(read_length)
+        self.timeout(0.1)
+
+        # Write data
+        for byte in write_data:
+            self.write(byte)
+            self.timeout(0.1)
+
+        # Read response
+        if read_length > 0:
+            return self.read(read_length)
+        return b''
+
+    def write(self, data: Union[bytes, bytearray, list]) -> None:
+        """Write data.
+
+        Parameters
+        ----------
+        data : Union[bytes, bytearray, list]
+            Data to write
+
+        Raises
+        ------
+        ValueError
+            If write operation fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Send command
+        self.write(self.SPI_CMD_WRITE)
+        self.write(len(data))
+        self.timeout(0.1)
+
+        # Write data
+        for byte in data:
+            self.write(byte)
+            self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise ValueError("Failed to write data")
+
+    def read(self, length: int) -> bytes:
+        """Read data.
+
+        Parameters
+        ----------
+        length : int
+            Number of bytes to read
+
+        Returns
+        -------
+        bytes
+            Read data
+
+        Raises
+        ------
+        ValueError
+            If read operation fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Send command
+        self.write(self.SPI_CMD_READ)
+        self.write(length)
+        self.timeout(0.1)
+
+        # Read response
+        return self.read(length)
+
+    def start(self) -> None:
+        """Start SPI transaction.
+
+        Raises
+        ------
+        ValueError
+            If start operation fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Send command
+        self.write(self.SPI_CMD_START)
+        self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise ValueError("Failed to start SPI transaction")
+
+    def stop(self) -> None:
+        """Stop SPI transaction.
+
+        Raises
+        ------
+        ValueError
+            If stop operation fails
+        """
+        if not self.connected:
+            raise ValueError("Not connected to Bus Pirate")
+
+        if self.mode != 'spi':
+            self.enter()
+
+        # Send command
+        self.write(self.SPI_CMD_STOP)
+        self.timeout(0.1)
+
+        # Read response
+        response = self.read(1)
+        if response[0] != 0x01:
+            raise ValueError("Failed to stop SPI transaction")
 
     @property
     def pins(self):
@@ -135,205 +380,38 @@ class SPI(BusPirate):
         self._pins = cfg
 
     @property
-    def config(self):
-        return self._config
+    def speed(self):
+        """Get current SPI speed setting."""
+        return self.speed_setting
 
-    @config.setter
-    def config(self, cfg):
-        """ Set SPI configuration
-
-        This command configures the SPI settings. Options and start-up defaults are the same as the user terminal
-        SPI mode. w= pin output HiZ(0)/3.3v(1), x=CKP clock idle phase (low=0), y=CKE clock edge (active to idle=1),
-        z=SMP sample time (middle=0). The Bus Pirate responds 0x01 on success.
-
-        Default raw SPI startup condition is 0010. HiZ mode configuration applies to the SPI pins and the CS pin,
-        but not the AUX pin. See the PIC24FJ64GA002 datasheet and the SPI section[PDF] of the PIC24 family manual
-        for more about the SPI configuration settings.
+    @speed.setter
+    def speed(self, frequency):
+        """Set SPI speed.
 
         Parameters
         ----------
-        cfg : byte
-                CFG_SAMPLE: sample time (0 = middle)
-                CFG_CLK_EDGE: clock edge (1 = active to idle)
-                CFG_IDLE: clock idle phase (0 = low)
-                CFG_PUSH_PULL: pin output (0 = HiZ, 1 = push-pull)
-
-        Examples
-        -------
-        >>> spi.config = CFG_PUSH_PULL | CFG_IDLE
-
-        Raises
-        ------
-        ProtocolError
-            If configuration could not be set
-        """
-        self.write(0x80 | cfg)
-        self.timeout(self.minDelay)
-        if self.response(1, binary=True) != b'\x01':
-            raise ValueError("Could not set SPI configuration")
-        self._config = cfg
-
-    def transfer(self, txdata):
-        """ Bulk SPI transfer, send/read 1-16 bytes
-
-        Bulk SPI allows direct byte reads and writes. The Bus Pirate expects xxxx+1 data bytes. Up to 16 data bytes
-        can be sent at once, each returns a byte read from the SPI bus during the write.
-
-        Note that 0000 indicates 1 byte because there's no reason to send 0. BP replies 0x01 to the bulk SPI command,
-        and returns the value read from SPI after each data byte write.
-
-        The way it goes together:
-
-        The upper 4 bit of the command byte are the bulk read command (0001xxxx)
-        xxxx = the number of bytes to read. 0000=1, 0001=2, etc, up to 1111=16
-        If we want to read (0001) four bytes (0011=3=read 4) the full command is 00010011 (0001 + 0011 ).
-        Convert from binary to hex and it is 0x13
-
-
-        Parameters
-        ----------
-        txdata: List of bytes
-            Data to send (1-16 bytes)
-
-        Returns
-        -------
-            List containing received data
+        frequency : str or int
+            SPI clock speed (30kHz, 125kHz, 250kHz, 1MHz, 2MHz, 2.6MHz, 4MHz, 8MHz) or serial port speed (int)
 
         Raises
         ------
         ValueError
-            If more than 16 bytes are requested to be sent
+            If SPI speed could not be set
         """
-        length = len(txdata)
-        if length > 16:
-            ValueError('A maximum of 16 bytes can be sent')
-        self.write(0x10 + length-1)
-        for data in txdata:
-            self.write(data)
-        if self.response(1, binary=True) != b'\x01':
-            raise ValueError("Could not transfer SPI data")
-        rxdata = self.response(length, binary=True)
-        return rxdata
-
-    def write_then_read(self, numtx, numrx, txdata, cs=True):
-        """ Write then read
-
-        This command was developed to help speed ROM programming with Flashrom. It might be helpful for a lot of common
-        SPI operations. It enables chip select, writes 0-4096 bytes, reads 0-4096 bytes, then disables chip select.
-
-        All data for this command can be sent at once, and it will be buffered in the Bus Pirate. The write and read
-        operations happen all at once, and the read data is buffered. At the end of the operation, the read data is
-        returned from the buffer. The goal is to meet the stringent timing requirements of some ROM chips by buffering
-        everything instead of letting the serial port delay things.
-
-        Write then read command format:
-        +---------------|--------------------------------|-------------------------------|-----------------------------+
-        |command (1byte)| number of write bytes (2bytes) | number of read bytes (2bytes) | bytes to write (0-4096bytes)|
-        +---------------|--------------------------------|-------------------------------|-----------------------------+
-
-        Return data format:
-        +----------------------|-----------------------------------+
-        | success/0x01 (1byte) | bytes read from SPI (0-4096bytes) |
-        +----------------------|-----------------------------------+
-
-        1. First send the write then read command (00000100)
-        2. The next two bytes (High8/Low8) set the number of bytes to write (0 to 4096)
-        3. The next two bytes (h/l) set the number of bytes to read (0 to 4096)
-        4. If the number of bytes to read or write are out of bounds, the Bus Pirate will return 0x00 now
-        5. Now send the bytes to write. Bytes are buffered in the Bus Pirate, there is no acknowledgment that a byte is received.
-        6. Now the Bus Pirate will write the bytes to SPI and read/return the requsted number of read bytes
-        7. CS goes low, all write bytes are sent at once
-        8. Read starts immediately, all bytes are put into a buffer at max SPI speed (no waiting for UART)
-        9. At the end of the read, CS goes high
-        10. The Bus Pirate now returns 0x01, success
-        11. Finally, the buffered read bytes are returned via the serial port
-
-        Except as described above, there is no acknowledgment that a byte is received.
-
-        Parameters
-        ----------
-        numtx : int
-            Number of bytes to write
-        numrx : int
-            Number of bytes to read
-        txdata : list
-            Data to send
-        cs : bool
-            Generate CS transitions (default=True)
-
-        Raises
-        ------
-        ProtocolError
-            If data could not be sent
-        """
-        if cs:
-            self.write(0x04)
-        else:
-            self.write(0x05)
-        self.write(numtx >> 8 & 0xff)
-        self.write(numtx & 0xff)
-        self.write(numrx >> 8 & 0xff)
-        self.write(numrx & 0xff)
-        for data in txdata:
-            self.write(data)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError("Error transmitting data")
-
-        return self.response(numrx, binary=True)
-
-    @property
-    def cs(self):
-        """ Return chip select pin status """
-        return self._cs
-
-    @cs.setter
-    def cs(self, value):
-        """ Set chip select pin
-        Parameters
-        ----------
-        value: bool
-            Set CS high(False) or low(True) (i.e. active low CS)
-
-        Raises
-        ------
-        ProtocolError
-            If CS could not be set
-        """
-        if value:
-            self.write(0x02)
-        else:
-            self.write(0x03)
-        if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError("CS could not be set")
-        self._cs = value
-
-    @property
-    def speed(self):
-        return self._speed
-
-    @speed.setter
-    def speed(self, frequency):
-        """ Set SPI bus speed
-
-        Parameters
-        ----------
-        frequency : str
-            SPI clock speed (30kHz, 125kHz, 250kHz, 1MHz, 2MHz, 2.6MHz, 4MHz, 8MHz)
-
-        Raises
-        ------
-        ProtocolError
-            If I2C speed could not be set
-        """
+        if isinstance(frequency, int):
+            # This is the serial port speed, not the SPI speed
+            if hasattr(self, 'port') and self.port:
+                self.port.baudrate = frequency
+            return
         try:
             clock = self.SPEEDS[frequency]
+            self.speed_setting = clock
         except KeyError:
             raise ValueError('Clock speed not supported')
         self.write(0x60 | clock)
 
         if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Could not set SPI speed')
-        self._speed = frequency
+            raise ValueError('Could not set SPI speed')
 
     def sniffer(self, cs):
         """ Sniff SPI traffic when CS low(10)/all(01) TODO
@@ -372,4 +450,4 @@ class SPI(BusPirate):
             cmd = 0x0d
         self.write(cmd)
         if self.response(1, binary=True) != b'\x01':
-            raise ProtocolError('Could not set SPI sniff mode')
+            raise ValueError('Could not set SPI sniff mode')
