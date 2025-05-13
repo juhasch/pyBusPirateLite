@@ -22,6 +22,12 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
+try:
+    from importlib import metadata
+except ImportError:
+    # Python < 3.8
+    import importlib_metadata as metadata # type: ignore
+
 from .base import *
 from .BitBang import *
 from .common_functions import *
@@ -33,4 +39,8 @@ from .SPI import *
 from .UART import *
 from .UC import *
 
-__version__ = 0.3
+try:
+    __version__ = metadata.version(__name__)
+except metadata.PackageNotFoundError:
+    # Package is not installed
+    __version__ = "0.0.0-unknown"
