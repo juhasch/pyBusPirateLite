@@ -59,7 +59,7 @@ class I2C(BusPirate):
     def enter(self):
         """ Enter I2C mode
 
-        Once in binary I2C mode, send 0×01 to get the current mode version string. The Bus Pirate responds ‘I2Cx’,
+        Once in binary I2C mode, send 0×01 to get the current mode version string. The Bus Pirate responds 'I2Cx',
         where x is the raw I2C protocol version (currently 1). Get the version string at any time by sending 0×01 again.
         This command is the same in all binary modes, the current mode can always be determined by sending 0x01.
 
@@ -160,9 +160,9 @@ class I2C(BusPirate):
         """ Sniff traffic on an I2C bus.
 
         [/] - Start/stop bit
-        \ - escape character precedes a data byte value
+        \\ - escape character precedes a data byte value
         +/- - ACK/NACK
-        Sniffed traffic is encoded according to the table above. Data bytes are escaped with the '\' character.
+        Sniffed traffic is encoded according to the table above. Data bytes are escaped with the '\\' character.
         Send a single byte to exit, Bus Pirate responds 0x01 on exit.
         """
         self.write(0x0f)
@@ -173,7 +173,7 @@ class I2C(BusPirate):
         """ Bulk I2C write, send 1-16 bytes
 
         Bulk I2C allows multi-byte writes. The Bus Pirate expects xxxx+1 data bytes. Up to 16 data bytes can be sent at
-        once. Note that 0000 indicates 1 byte because there’s no reason to send 0.
+        once. Note that 0000 indicates 1 byte because there's no reason to send 0.
 
         BP replies 0×01 to the bulk I2C command. After each data byte the Bus Pirate returns the ACK (0x00) or
         NACK (0x01) bit from the slave device.
