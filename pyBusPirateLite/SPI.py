@@ -5,7 +5,7 @@
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
 # 
 # Updated and made Python3 compatible by Juergen Hasch, 20160501
-# Copyright 2016 Juergen Hasch <python@elbonia.de>
+# Copyright 2016 Juergen Hasch <juergen.hasch@elbonia.de>
 # 
 # This file is part of pyBusPirate.
 # 
