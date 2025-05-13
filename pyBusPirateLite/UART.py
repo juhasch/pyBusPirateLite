@@ -80,7 +80,7 @@ class UART(BusPirate):
         if self.mode != 'bb':
             super(UART, self).enter()
         self.write(0x03)
-        self.pause(self._original_timeout)
+        self.timeout(self.minDelay * 10)
         if self.response(4) == "ART1":
             self.mode = 'uart'
             self.bp_port = 0b00         # two bit port
@@ -94,7 +94,7 @@ class UART(BusPirate):
     def modestring(self):
         """ Return mode version string """
         self.write(0x01)
-        self.pause(self.minDelay * 10)
+        self.timeout(self.minDelay * 10)
         return self.response(4)
 
     @property
@@ -126,7 +126,7 @@ class UART(BusPirate):
         self.write(0x03)
         self.write(BRGH)
         self.write(BRGL)
-        self.pause(0.1)
+        self.timeout(0.1)
         return self.response()
 
     def begin_input(self):
@@ -141,15 +141,15 @@ class UART(BusPirate):
         Starts a transparent UART bridge using the current configuration. Unplug the Bus Pirate to exit.
         """
         self.write(0x0f)
-        self.pause(0.1)
+        self.timeout(0.1)
         self.response(1, binary=True)
 
     def set_cfg(self, cfg):
         self.write(0xC0 | cfg)
-        self.pause(0.1)
+        self.timeout(0.1)
         return self.response(1, binary=True)
 
     def read_cfg(self):
         self.write(0xd0)
-        self.pause(0.1)
+        self.timeout(0.1)
         return self.response(1, binary=True)
