@@ -19,7 +19,7 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import BusPirate
+from .base import BPError, BusPirate
 
 FOSC = (32000000 / 2)
 
@@ -72,7 +72,7 @@ class UART(BusPirate):
 
         Raises
         ------
-        ValueError
+        BPError
             Could not enter UART mode
         """
         if self.mode == 'uart':
@@ -88,7 +88,7 @@ class UART(BusPirate):
             self.recurse_end()
             return
         self.recurse_flush(self.enter)
-        raise ValueError('Could not enter UART mode')
+        raise BPError('Could not enter UART mode')
 
     @property
     def modestring(self):
