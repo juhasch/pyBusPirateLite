@@ -19,49 +19,87 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Dict, List, Optional, Union
+
 from .base import BPError, BusPirate, ProtocolError
 
 
 class I2C(BusPirate):
     """ Provide access to the Bus Pirate I2C interface"""
 
-    SPEEDS = {'400kHz': 0x03,
-              '100kHz': 0x02,
-              '50kHz' : 0x01,
-              '5kHz'  : 0x00}
+    # Command constants
+    _CMD_ENTER_I2C_MODE: int = 0x02
+    _CMD_GET_MODE_VERSION: int = 0x01
+    _CMD_START_BIT: int = 0x02
+    _CMD_STOP_BIT: int = 0x03
+    _CMD_ACK: int = 0x06
+    _CMD_NACK: int = 0x07
+    _CMD_SNIFFER: int = 0x0F
+    _CMD_BULK_WRITE_BASE: int = 0x10 # Upper 4 bits for bulk write, lower 4 for length-1
+    _CMD_SET_SPEED_BASE: int = 0x60 # Upper 4 bits for speed command, lower 4 for speed value
+    _CMD_WRITE_THEN_READ: int = 0x08
+    _CMD_AUX_PIN: int = 0x09
+    _CMD_CONFIGURE_PERIPHERALS_BASE: int = 0x40 # Upper 4 bits, lower 4 for peripheral states
 
-    pin_mapping = {'AUX': 0b10,
-                    'CS': 0b01}
+    # Peripheral configuration bits (for _CMD_CONFIGURE_PERIPHERALS_BASE)
+    _CONFIG_POWER: int = 0x08
+    _CONFIG_PULLUP: int = 0x04
+    _CONFIG_AUX_PIN_STATE: int = 0x02 # Actual pin state if AUX is output
+    _CONFIG_CS_PIN_STATE: int = 0x01 # Actual pin state if CS is output
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    # AUX command specific values
+    _AUX_CMD_LOW: int = 0x00
+    _AUX_CMD_HIGH: int = 0x01
+    _AUX_CMD_HIZ: int = 0x02
+    _AUX_CMD_READ: int = 0x03
+    _AUX_CMD_USE_AUX: int = 0x10
+    _AUX_CMD_USE_CS: int = 0x20
+    _VALID_AUX_CMDS: tuple = (_AUX_CMD_LOW, _AUX_CMD_HIGH, _AUX_CMD_HIZ, _AUX_CMD_READ, 
+                             _AUX_CMD_USE_AUX, _AUX_CMD_USE_CS)
+
+
+    SPEEDS: Dict[str, int] = {'400kHz': 0x03,
+                               '100kHz': 0x02,
+                               '50kHz' : 0x01,
+                               '5kHz'  : 0x00}
+
+    pin_mapping: Dict[str, int] = {'AUX': 0b10,
+                                   'CS': 0b01}
+
+    i2c_speed: Optional[str] # Stores the string representation of the speed, e.g., '100kHz'
+
+    def __init__(self, portname: str = '', speed: int = 115200, timeout: float = 0.1, connect: bool = True):
         """
-        This constructor by default conntects to the first buspirate it can
+        This constructor by default connects to the first buspirate it can
         find. If you don't want that, set connect to False.
 
         Parameters
         ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
+        portname : str, optional
+            Name of comport (e.g., '/dev/bus_pirate' or 'COM3'). Default is empty string.
+        speed : int, optional
+            Communication speed for the serial port. Default is 115200.
+        timeout : float, optional
+            Timeout in seconds to wait for reply from Bus Pirate. Default is 0.1.
+        connect : bool, optional
+            Whether to connect to the Bus Pirate immediately. Default is True.
  
         Examples
         --------
         >>> from pyBusPirateLite.I2C import I2C
-        >>> i2c = I2C()
-        >>> i2c.speed = '400kHz'
+        >>> i2c = I2C() # Connects to the first available Bus Pirate
+        >>> i2c.speed = '400kHz' # Sets I2C communication speed
         """
         super().__init__(portname, speed, timeout, connect)
-        self.i2c_speed = None
+        self.i2c_speed = None # Will store the string key like '100kHz'
         
-    def enter(self):
+    def enter(self) -> None:
         """ Enter I2C mode
 
-        Once in binary I2C mode, send 0×01 to get the current mode version string. The Bus Pirate responds 'I2Cx',
-        where x is the raw I2C protocol version (currently 1). Get the version string at any time by sending 0×01 again.
-        This command is the same in all binary modes, the current mode can always be determined by sending 0x01.
+        Once in binary I2C mode, send `_CMD_GET_MODE_VERSION` (0x01) to get the current mode version string. 
+        The Bus Pirate responds 'I2Cx', where x is the raw I2C protocol version (currently 1). 
+        Get the version string at any time by sending `_CMD_GET_MODE_VERSION` again.
+        This command is the same in all binary modes; the current mode can always be determined by sending 0x01.
 
         Raises
         ------
@@ -71,39 +109,36 @@ class I2C(BusPirate):
         if self.mode == 'i2c':
             return
         if self.mode != 'bb':
-            super(I2C, self).enter()
+            super().enter()
 
-        self.write(0x02)
-        self.timeout(self.minDelay * 10)
-        if self.response(4) == "I2C1":
+        self.write(self._CMD_ENTER_I2C_MODE)
+        response_str = self.response(4)
+        if response_str == "I2C1":
             self.mode = 'i2c'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
             self.recurse_end()
             return
-        raise BPError('Could not enter I2C mode')
+        raise BPError(f'Could not enter I2C mode. Expected "I2C1", got "{response_str}"')
 
     @property
-    def check_i2c(self):
+    def check_i2c(self) -> bool:
         """Test if we are still in I2C mode
 
         Returns
         -------
+        bool
             True if in I2C mode
 
         Raises
         ------
-            BPError if not in I2C mode
-
+        BPError if not in I2C mode
         """
-        resp = self.response(20)
-        self.write(0x01)
-        resp = self.response(20)
-        if resp == "I2C1":
+        self.write(self._CMD_GET_MODE_VERSION)
+        response_str = self.response(4)
+        if response_str == "I2C1":
             return True
-        raise BPError(f'Not in I2C mode, response {resp}.')
+        raise BPError(f'Not in I2C mode, response: "{response_str}". Expected "I2C1".')
 
-    def start(self):
+    def start(self) -> None:
         """ Send an I2C start bit
 
         Raises
@@ -111,11 +146,11 @@ class I2C(BusPirate):
         ProtocolError
             Did not get expected response
         """
-        self.write(0x02)
+        self.write(self._CMD_START_BIT)
         if self.response(1) != '\x01':
             raise ProtocolError('Could not send I2C start bit')
 
-    def stop(self):
+    def stop(self) -> None:
         """ Send an I2C stop bit
 
         Raises
@@ -123,11 +158,11 @@ class I2C(BusPirate):
         ProtocolError
             Did not get expected response
         """
-        self.write(0x03)
+        self.write(self._CMD_STOP_BIT)
         if self.response(1) != '\x01':
             raise ProtocolError('Could not send I2C stop bit')
 
-    def ack(self):
+    def ack(self) -> None:
         """ Send ACK
 
         Send an I2C ACK bit after reading a byte. Tells a slave device that you will read another byte.
@@ -137,11 +172,11 @@ class I2C(BusPirate):
         ProtocolError
             Did not get expected response
         """
-        self.write(0x06)
+        self.write(self._CMD_ACK)
         if self.response(1) != '\x01':
             raise ProtocolError('Could not send ACK')
 
-    def nack(self):
+    def nack(self) -> None:
         """ Send NACK
 
         Send an I2C NACK bit after reading a byte. Tells a slave device that you will stop reading,
@@ -152,11 +187,11 @@ class I2C(BusPirate):
         ProtocolError
             Did not get expected response
         """
-        self.write(0x07)
+        self.write(self._CMD_NACK)
         if self.response(1) != '\x01':
             raise ProtocolError('Could not send NACK')
 
-    def sniffer(self):
+    def sniffer(self) -> str:
         """ Sniff traffic on an I2C bus.
 
         [/] - Start/stop bit
@@ -165,11 +200,11 @@ class I2C(BusPirate):
         Sniffed traffic is encoded according to the table above. Data bytes are escaped with the '\\' character.
         Send a single byte to exit, Bus Pirate responds 0x01 on exit.
         """
-        self.write(0x0f)
+        self.write(self._CMD_SNIFFER)
         resp = self.response(64)
         return resp
 
-    def transfer(self, txdata):
+    def transfer(self, txdata: List[int]) -> bytes:
         """ Bulk I2C write, send 1-16 bytes
 
         Bulk I2C allows multi-byte writes. The Bus Pirate expects xxxx+1 data bytes. Up to 16 data bytes can be sent at
@@ -196,18 +231,18 @@ class I2C(BusPirate):
         length = len(txdata)
         if length > 16:
             ValueError('A maximum of 16 bytes can be sent')
-        self.write(0x10 + length-1)
+        self.write(self._CMD_BULK_WRITE_BASE | (length - 1))
         for data in txdata:
             self.write(data)
 
-        resp = self.response(length+1)
+        resp = self.response(length+1, binary=True)
         if resp[0] != '\x01':
             raise ValueError("Could not transfer I2C data")
 
         return resp[1:]
 
     @property
-    def speed(self):
+    def speed(self) -> Optional[str]:
         """ Return current I2C clock speed
 
         Returns
@@ -218,7 +253,7 @@ class I2C(BusPirate):
         return self.i2c_speed
 
     @speed.setter
-    def speed(self, frequency):
+    def speed(self, frequency: str) -> None:
         """ Set I2C speed
 
         Parameters
@@ -235,13 +270,13 @@ class I2C(BusPirate):
             clock = self.SPEEDS[frequency]
         except KeyError:
             raise ValueError('Clock speed not supported')
-        self.write(0x60 | clock)
+        self.write(self._CMD_SET_SPEED_BASE | clock)
 
         if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Could not set IC2 speed')
         self.i2c_speed = frequency
 
-    def write_then_read(self, numtx, numrx, txdata):
+    def write_then_read(self, numtx: int, numrx: int, txdata: List[int]) -> bytes:
         """ Write then read
 
         This command internally sends I2C start, writes from 0-4096 bytes, then reads 0-4096 bytes into the Bus Pirates
@@ -295,7 +330,7 @@ class I2C(BusPirate):
         ...
         0x?? - read position 256 - the requested number of bytes read from the I2C bus
         """
-        self.write(0x08)
+        self.write(self._CMD_WRITE_THEN_READ)
         self.write(numtx >> 8 & 0xff)
         self.write(numtx & 0xff)
         self.write(numrx >> 8 & 0xff)
@@ -307,22 +342,17 @@ class I2C(BusPirate):
 
         return self.response(numrx, binary=True)
 
-    def aux(self, cmd):
+    def aux(self, cmd: int) -> str:
         """ Provides extended use of AUX pin. Requires one command byte. Bus Pirate acknowledges 0x01.
 
             +--------+------------+
             |Command | Function   |
             +========+============+
             | 0x00   | AUX/CS low |
-            +--------+------------+
             | 0x01   | AUX/CS high|
-            +--------+------------+
             | 0x02   | AUX/CS HiZ |
-            +--------+------------+
             | 0x03   | AUX read   |
-            +--------+------------+
             | 0x10   | use AUX    |
-            +--------+------------+
             | 0x20   | use CS     |
             +--------+------------+
 
@@ -331,9 +361,9 @@ class I2C(BusPirate):
 
 
         """
-        if cmd not in (0x00, 0x01, 0x02, 0x03, 0x10, 0x20):
-            raise ProtocolError('Illegal extended AUX command')
-        self.write(0x09)
+        if cmd not in self._VALID_AUX_CMDS:
+            raise ProtocolError(f'Illegal extended AUX command: {cmd:#04x}. Valid commands are: {self._VALID_AUX_CMDS}')
+        self.write(self._CMD_AUX_PIN)
         if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Error in extended AUX command')
         self.write(cmd)
@@ -345,7 +375,7 @@ class I2C(BusPirate):
             raise ProtocolError('Error in extended AUX command')
         return resp[:-1].decode('ASCII')
 
-    def configure(self, power=False, pullup=False, aux=False, cs=False):
+    def configure(self, power: bool = False, pullup: bool = False, aux: bool = False, cs: bool = False) -> None:
         """Configure peripherals w=power, x=pullups, y=AUX, z=CS
 
             Enable (1) and disable (0) Bus Pirate peripherals and pins. Bit w enables the power supplies, bit x toggles
@@ -356,15 +386,15 @@ class I2C(BusPirate):
             -----
             CS pin always follows the current HiZ pin configuration. AUX is always a normal pin output (0=GND, 1=3.3volts).
         """
-        data = 0x40
+        data = self._CMD_CONFIGURE_PERIPHERALS_BASE
         if power:
-            data |= 0x08
+            data |= self._CONFIG_POWER
         if pullup:
-            data |= 0x04
+            data |= self._CONFIG_PULLUP
         if aux:
-            data |= 0x02
+            data |= self._CONFIG_AUX_PIN_STATE
         if cs:
-            data |= 0x01
+            data |= self._CONFIG_CS_PIN_STATE
         self.write(data)
         if self.response(1, binary=True) != b'\x01':
             raise ProtocolError('Error configuring pins')
