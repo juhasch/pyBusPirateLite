@@ -5,16 +5,101 @@ This page contains practical examples for using the ADC functionality with pyBus
 ## Basic ADC Reading
 
 ```python
-from pyBusPirateLite.ADC import ADC
+from pyBusPirateLite.BitBang import BitBang
 
-# Initialize ADC interface
-adc = ADC()
-adc.configure(power=True)
+# Initialize BitBang interface
+bb = BitBang()
 
 # Read ADC value
-value = adc.read()  # Read raw ADC value
-voltage = adc.read_voltage()  # Read voltage
+voltage = bb.adc  # Read voltage from ADC pin
+print(f"Voltage: {voltage:.2f}V")
 ```
+
+## Continuous ADC Monitoring
+
+```python
+from pyBusPirateLite.BitBang import BitBang
+import time
+
+def monitor_voltage(duration: float = 60.0, interval: float = 1.0) -> list:
+    """Monitor voltage for a specified duration.
+    
+    Args:
+        duration: Total monitoring duration in seconds
+        interval: Time between readings in seconds
+        
+    Returns:
+        List of (timestamp, voltage) tuples
+    """
+    readings = []
+    start_time = time.time()
+    
+    with BitBang() as bb:
+        while time.time() - start_time < duration:
+            voltage = bb.adc
+            timestamp = time.time() - start_time
+            readings.append((timestamp, voltage))
+            time.sleep(interval)
+            
+    return readings
+```
+
+## Advanced ADC Usage
+
+```python
+from pyBusPirateLite.BitBang import BitBang
+import time
+
+def get_averaged_reading(samples: int = 10, delay: float = 0.1) -> float:
+    """Get averaged ADC reading over multiple samples.
+    
+    Args:
+        samples: Number of samples to average
+        delay: Delay between samples in seconds
+        
+    Returns:
+        Averaged voltage reading
+    """
+    with BitBang() as bb:
+        readings = []
+        for _ in range(samples):
+            readings.append(bb.adc)
+            time.sleep(delay)
+        return sum(readings) / len(readings)
+
+def detect_threshold(threshold: float, 
+                    above: bool = True,
+                    timeout: float = 60.0) -> bool:
+    """Detect when voltage crosses a threshold.
+    
+    Args:
+        threshold: Voltage threshold in volts
+        above: True to detect above threshold, False for below
+        timeout: Maximum time to wait in seconds
+        
+    Returns:
+        True if threshold was detected, False if timeout
+    """
+    start_time = time.time()
+    
+    with BitBang() as bb:
+        while time.time() - start_time < timeout:
+            voltage = bb.adc
+            if above and voltage > threshold:
+                return True
+            elif not above and voltage < threshold:
+                return True
+            time.sleep(0.1)
+            
+    return False
+```
+
+## Notes
+
+1. The ADC functionality is part of the BitBang interface and requires the BusPirate to be in BitBang mode.
+2. The ADC has a resolution of 10 bits (0-1023) and measures voltage from 0V to 6.6V.
+3. For best accuracy, allow a small delay between readings.
+4. The ADC pin is shared with other functions, so make sure it's properly configured for ADC use.
 
 ## Reading Raw ADC Values
 
@@ -81,68 +166,6 @@ def safe_adc_read() -> float:
 ```
 
 ## Common Use Cases
-
-### Continuous Monitoring
-
-```python
-from pyBusPirateLite.ADC import ADC
-import time
-
-def monitor_voltage(duration: float = 60.0, interval: float = 1.0) -> list:
-    """Monitor voltage for a specified duration.
-    
-    Args:
-        duration: Total monitoring duration in seconds
-        interval: Time between readings in seconds
-        
-    Returns:
-        List of (timestamp, voltage) tuples
-    """
-    readings = []
-    start_time = time.time()
-    
-    with ADC() as adc:
-        while time.time() - start_time < duration:
-            voltage = adc.read_voltage()
-            timestamp = time.time() - start_time
-            readings.append((timestamp, voltage))
-            time.sleep(interval)
-            
-    return readings
-```
-
-### Voltage Threshold Detection
-
-```python
-from pyBusPirateLite.ADC import ADC
-import time
-
-def detect_threshold(threshold: float, 
-                    above: bool = True,
-                    timeout: float = 60.0) -> bool:
-    """Detect when voltage crosses a threshold.
-    
-    Args:
-        threshold: Voltage threshold in volts
-        above: True to detect above threshold, False for below
-        timeout: Maximum time to wait in seconds
-        
-    Returns:
-        True if threshold was detected, False if timeout
-    """
-    start_time = time.time()
-    
-    with ADC() as adc:
-        while time.time() - start_time < timeout:
-            voltage = adc.read_voltage()
-            if above and voltage > threshold:
-                return True
-            elif not above and voltage < threshold:
-                return True
-            time.sleep(0.1)
-            
-    return False
-```
 
 ### Battery Monitoring
 

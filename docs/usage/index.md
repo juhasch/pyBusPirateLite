@@ -101,16 +101,16 @@ bb.pins = bb.PIN_AUX  # Set aux pin = 1
 
 ## ADC Measurements
 
-The ADC interface allows reading analog values:
+The ADC functionality is available through the BitBang interface:
 
 ```python
-from pyBusPirateLite.ADC import ADC
+from pyBusPirateLite.BitBang import BitBang
 
-# Initialize
-adc = ADC()
+# Initialize BitBang interface
+bb = BitBang()
 
 # Read voltage
-voltage = adc.read_voltage()
+voltage = bb.adc  # Returns voltage in volts
 ```
 
 ## Error Handling

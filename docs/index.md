@@ -25,14 +25,13 @@ spi.cs = False
   - SPI
   - I2C
   - UART
-  - Bitbang
+  - Bitbang (including ADC measurements)
   - Onewire
   - Rawwire
-  - ADC measurements
 - Modern Python interface
 - Type hints support
 - Comprehensive documentation
-- Extensive test coverage
+- Test coverage for core protocols (SPI, I2C, UART, BitBang)
 
 ## Installation
 
