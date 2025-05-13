@@ -55,7 +55,7 @@ class BitBang(BusPirate):
         """
 
         self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0  **TODO**
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         return ord(self.response(1, binary=True)) & 0x1f
 
     @outputs.setter
@@ -83,7 +83,7 @@ class BitBang(BusPirate):
         """
         self.pins_direction = pinlist & 0x1f
         self.write(0x40 | ~ self.pins_direction & 0x1f)  # map input->1, output->0
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         self.response(1, binary=True)
 
     @property
@@ -97,7 +97,7 @@ class BitBang(BusPirate):
             PIN_POWER, PIN_PULLUP, PIN_AUX, PIN_MOSI, PIN_CLK, PIN_MISO, PIN_CS
         """
         self.write(0x80 | (self.pins_state & 0x7f))
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         self.pins_state = ord(self.response(1, binary=True)) & 0x7f
         return self.pins_state
 
@@ -121,7 +121,7 @@ class BitBang(BusPirate):
         """
         self.pins_state = pinlist & 0x7f
         self.write(0x80 | self.pins_state)
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         self.pins_state = ord(self.response(1, binary=True)) & 0x7f
 
     @property
@@ -134,7 +134,7 @@ class BitBang(BusPirate):
             Voltage measured at ADC pin
         """
         self.write(0x14)
-        self.timeout(self.minDelay)
+        self.pause(self._original_timeout)
         ret = self.response(2, binary=True)
         voltage = (ret[0] << 8) + ret[1]
         voltage = (voltage * 6.6) / 1024
@@ -207,13 +207,14 @@ class BitBang(BusPirate):
             self.write(0x11)
         else:
             self.write(0x10)
-        self.timeout(1)
+        self.pause(1) # Pause for selftest to run
         errors = self.response(1, binary=True)
-        self.write(0xff)
+        self.write(0xff) # Exit selftest command
+        self.pause(self.minDelay * 10) # Added pause before reading response to 0xff
         resp = self.response(1, binary=True)
         if resp != b'\x01':
             raise ProtocolError('Self test did not return to bitbang mode')
-        self.timeout(self.minDelay)
+        self.pause(self.minDelay)
         return ord(errors)
 
     def enable_PWM(self, frequency, dutycycle=.5):
@@ -267,13 +268,13 @@ class BitBang(BusPirate):
         self.write(dutycycle & 0xFF)
         self.write((period >> 8) & 0xFF)
         self.write(period & 0xFF)
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not setup PWM mode")
 
     def disable_PWM(self):
         """ Clear/disable PWM """
         self.write(0x13)
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not disable PWM mode")

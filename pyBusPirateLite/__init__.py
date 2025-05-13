@@ -22,15 +22,22 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .base import *
+import importlib.metadata
+
 from .BitBang import *
-from .common_functions import *
 from .I2C import *
 from .I2Chigh import *
-from .onewire import *
-from .rawwire import *
 from .SPI import *
 from .UART import *
 from .UC import *
+from .base import *
+from .common_functions import *
+from .onewire import *
+from .rawwire import *
 
-__version__ = 0.3
+try:
+    __version__ = importlib.metadata.version(__name__)
+except importlib.metadata.PackageNotFoundError:
+    # Package is not installed
+    __version__ = "0.0.0-dev"
+

@@ -20,8 +20,10 @@
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 from time import sleep
+from typing import Optional, Union, List, Tuple # Added for type hints
 
 import serial
+import serial.tools.list_ports as list_ports # Moved import
 
 
 class BPError(IOError):
@@ -46,311 +48,427 @@ class BusPirate:
     # 0x01 CS
     # 0x08 - +3.3V
 
-    PIN_CS = 0x01
-    PIN_MISO = 0x02
-    PIN_CLK = 0x04
-    PIN_MOSI = 0x08
-    PIN_AUX = 0x10
-    PIN_PULLUP = 0x20
-    PIN_POWER = 0x40
+    PIN_CS: int = 0x01
+    PIN_MISO: int = 0x02
+    PIN_CLK: int = 0x04
+    PIN_MOSI: int = 0x08
+    PIN_AUX: int = 0x10
+    PIN_PULLUP: int = 0x20
+    PIN_POWER: int = 0x40
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname: str = '', speed: int = 115200, timeout: float = 0.1, connect: bool = True):
         """
-        This constructor by default conntects to the first buspirate it can
+        This constructor by default connects to the first buspirate it can
         find. If you don't want that, set connect to False.
 
         Parameters
         ----------
         portname : str
-            Name of comport (/dev/bus_pirate or COM3)
+            Name of comport (e.g., /dev/bus_pirate or COM3).
+            If empty, will attempt to autodetect.
         speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
+            Communication speed, default is 115200.
+        timeout : float
+            Timeout in seconds to wait for reply.
+        connect : bool
+            If True, automatically connect and enter bitbang mode.
         """
 
-        self.minDelay = 1 / 115200
-        self.mode = None
-        self.port = None
-        self.connected = False
-        self.t = True
-        self.bp_config = None
-        self.bp_port = None
-        self.bp_dir = None
-        self.portname = ''
-        self.pins_state = None
-        self.pins_direction = None
+        self.minDelay: float = 1 / 115200
+        self.mode: Optional[str] = None
+        self.port: Optional[serial.Serial] = None
+        self.connected: bool = False
+        self.t: bool = True  # TODO: What is self.t for? Consider a more descriptive name.
+        self.bp_config: Optional[int] = None
+        self.bp_port: Optional[int] = None
+        self.bp_dir: Optional[int] = None
+        self.portname: str = ''
+        self.pins_state: Optional[int] = None # Assuming int, based on PIN_ constants
+        self.pins_direction: Optional[int] = None # Assuming int
 
-        if connect is True:
+        if connect:
             self.connect(portname, speed, timeout)
             self.enter()
 
-    _attempts_ = 0  # global stored for use in enter
+    _attempts_: int = 0  # global stored for use in enter # TODO: Consider if this class attribute is appropriate, or if it should be an instance attribute or handled differently.
 
     @property
-    def adc_value(self):
+    def adc_value(self) -> float:
         """ Read and return the voltage on the analog input pin. """
         # raise error to prevent tab-completion having side-effects
         if self.mode != 'bb':
             raise TypeError("Action only valid in bitbang mode")
+        if self.port is None:
+            raise BPError("Serial port not initialized.")
         self.write(0x14)
         val = int.from_bytes(self.response(2, binary=True), 'big')
         # see
         # http://dangerousprototypes.com/blog/2009/10/09/bus-pirate-raw-bitbang-mode/
         # for conversion formula.
-        return (val/1024.0) * 3.3 * 2
+        return (val / 1024.0) * 3.3 * 2
 
-    def set_power_on(self, val):
+    def set_power_on(self, val: bool) -> None:
+        if self.port is None:
+            raise BPError("Serial port not initialized.")
         self.write(0x80 | (self.PIN_POWER if val else 0))
         self.response(1, binary=True)
-    power_on = property(None, set_power_on, doc="""
-        Enable or disable the built-in power supplies. Note that the power
-        supplies reset every time you change modes.
 
-        This is a read-only attribute due to API limitations of the buspirate
-        firmware. """)
+    power_on = property(fset=set_power_on, doc="""
+        Enable or disable the built-in power supplies.
+        Note that the power supplies reset every time you change modes.
+        This is a write-only property. The Bus Pirate firmware does not
+        provide a command to read the current power supply state.
+        """)
 
-    def enter_bb(self):
-        """Enter bitbang mode
+    def enter_bb(self) -> bool:
+        """Enter bitbang mode.
 
-        This is the be-all-end-all restart function.  It will keep trying
-        to get the bus pirate into bit bang mode even if it is stuck.  Call this
-        to get the bus pirate into a known state (bb mode)
+        This is the primary restart function. It attempts to get the Bus Pirate
+        into bitbang mode, even if it's in an unknown state. Call this
+        to ensure the Bus Pirate is in a known state (bitbang mode).
 
-        This command resets the Bus Pirate into raw bitbang mode from the user terminal.
-        It also resets to raw bitbang mode from raw SPI mode, or any other protocol mode.
-        This command always returns a five byte bitbang version string "BBIOx", w
-        here x is the current protocol version (currently 1).
+        This command resets the Bus Pirate into raw bitbang mode from the user
+        terminal, raw SPI mode, or any other protocol mode. It expects a five
+        byte bitbang version string "BBIOx" in response, where x is the
+        protocol version (currently 1 for "BBIO1").
 
-        Some terminals send a NULL character (0x00) on start-up, causing the Bus Pirate to enter binary mode when
-        it wasn't wanted. To get around this, you must now enter 0x00 at least 20 times to enter raw bitbang mode.
-
-        Notes
-        -----
-        The Bus Pirate user terminal could be stuck in a configuration menu when your program attempts to enter
-        binary mode. One way to ensure that you're at the command line is to send <enter> at least 10 times,
-        and then send '#' to reset. Next, send 0x00 to the command line 20+ times until you get the BBIOx version string.
-        After entering bitbang mode, you can enter other binary protocol modes.
+        Some terminals send a NULL character (0x00) on start-up. To ensure entry
+        into raw bitbang mode, this method sends 0x00 multiple times.
 
         Raises
         ------
         IOError
-            If device is not connected
+            If the device is not connected.
+        BPError
+            If bitbang mode could not be entered.
         """
-        if self.connected is not True:
+        if not self.connected or self.port is None:
             raise IOError('Device not connected')
-        self.timeout(self.minDelay * 10)
-        self.port.flushInput()
-        for i in range(10):
-            self.write(0x00)
-            r = self.response(1, binary=True)
-            if r:
-                break
-            for m in range(2):
-                 self.write(0x00)
 
-        self.timeout(self.minDelay * 10)
+        # Ensure port timeout is appropriate. self._original_timeout (e.g. 0.1s) is used for reads.
+        self.port.timeout = self._original_timeout 
         self.port.flushInput()
-        self.timeout(self.minDelay * 10)
-        resp = self.response(200)
-        self.write(0x00)
-        resp =  self.response(5)
-        if resp == "BBIO1":
+
+        # Send a burst of null bytes to enter bitbang mode
+        for _ in range(25): 
+            self.write(0x00) 
+            sleep(0.0001) # 100µs delay between bytes
+
+        # After sending nulls, give a moment for BP to switch state and send "BBIO1"
+        sleep(0.05) # 50ms delay
+
+        resp = self.port.read(5) # Attempt to read "BBIO1"
+
+        if resp == b"BBIO1":
             self.mode = 'bb'
-            self.bp_config = 0x00  # configuration bits determine action of power sources and pullups
-            self.bp_port = 0x00  # out_port similar to ports in microcontrollers
-            self.bp_dir = 0x1F  # direction port similar to microchip microcontrollers.  (1) is input, (0) is output
+            self.bp_config = 0x00  # configuration bits
+            self.bp_port = 0x00    # output port state
+            self.bp_dir = 0x1F     # port direction (1=input, 0=output)
+            self.port.flushInput() # Clear any lingering data after successful entry
+            return True
+        
+        # If first attempt failed, try one more robust clear and read sequence.
+        self.port.flushInput()
+        for _ in range(5): # Send a few more nulls
+            self.write(0x00)
+            sleep(0.0001)
+        sleep(0.05) # Another 50ms delay
+        resp = self.port.read(5)
+
+        if resp == b"BBIO1":
+            self.mode = 'bb'
+            self.bp_config = 0x00
+            self.bp_port = 0x00
+            self.bp_dir = 0x1F
             self.port.flushInput()
             return True
-        raise BPError('Could not enter bitbang mode')
 
-    def enter(self):
+        raise BPError(f'Could not enter bitbang mode. Expected "BBIO1", got "{resp!r}"')
+
+    def enter(self) -> None:
         """Enter bitbang mode.
-           Will be overriden by other classes 
+           This method is intended to be overridden by subclasses for specific
+           protocol modes. The base implementation ensures bitbang mode.
         """
         if self.mode == 'bb':
             return
-        return self.enter_bb()
+        self.enter_bb()
 
-    def hw_reset(self):
-        """Reset Bus Pirate
+    def hw_reset(self) -> None:
+        """Reset Bus Pirate hardware.
 
-        The Bus Pirate responds 0x01 and then performs a complete hardware reset.
-        The hardware and firmware version is printed (same as the 'i' command in the terminal),
-        and the Bus Pirate returns to the user terminal interface. Send 0x00 20 times to enter binary mode again.
+        Sends the hardware reset command (0x0F). The Bus Pirate responds 0x01,
+        performs a complete hardware reset, prints its hardware and firmware
+        version (like the 'i' command), and returns to the user terminal interface.
+        After this, send 0x00 multiple times to re-enter binary (bitbang) mode.
         """
         if self.mode != 'bb':
-            self.enter_bb()
-        self.write(0x0f)
-        self.port.flushInput()
-        self.timeout(.1)
-        self.mode = None
+            self.enter_bb() # Ensure we are in bitbang to send command
+        if self.port is None:
+            raise BPError("Serial port not initialized.")
 
-    def get_port(self):
-        """Detect Buspirate and return first detected port
-        
+        self.write(0x0f)
+        # BP responds 0x01 then resets. No need to read the 0x01.
+        self.port.flushInput() # Flush input as BP will spew version info
+        sleep(0.1) # Give BP time to reset
+        self.mode = None # BP is no longer in a known binary mode
+        self.connected = False # Effectively disconnected from a binary mode perspective
+                               # User will need to self.connect() and self.enter() again.
+                               # Or at least self.enter() to get back to bb.
+
+    def get_port(self) -> Optional[str]:
+        """Detect Bus Pirate and return the device path of the first one found.
+
         Returns
         -------
-        str
-            First valid port name
+        str or None
+            Device path (e.g., /dev/ttyUSB0, COM3) if found, otherwise None.
         """
-        try:
-            import serial.tools.list_ports as list_ports
-        except ImportError:
-            raise ImportError('Pyserial version with serial.tools.list_port required')
+        ports = list_ports.comports()
+        for port_info in ports:
+            # Standard FTDI VID/PID for Bus Pirate
+            if port_info.vid == 0x0403 and port_info.pid == 0x6001:
+                return port_info.device
+        return None
 
-        import serial
+    def connect(self, portname: str = '', speed: int = 115200, timeout: float = 0.1) -> None:
+        """Connect to the Bus Pirate.
 
-        # the API in version 2 and 3 is different
-        if serial.VERSION[0] == '2':
-            ports = list_ports.comports()
-            for port in ports:
-                if len(port) == 3 and '0403:6001' in port[2]:
-                    return port[0]
-                if len(port) == 3 and 'VID_0403+PID_6001' in port[2]:
-                    return port[0]
-        else:
-            ports = list_ports.comports()
-            for port in ports:
-                if hasattr(port, 'pid') and hasattr(port, 'vid'):
-                    if port.vid == 1027 and port.pid == 24577:
-                        return port.device
-
-    def connect(self, portname='', speed=115200, timeout=0.1):
-        """Will try to automatically find a port regardless of os
+        Attempts to automatically find a Bus Pirate if portname is not specified.
 
         Parameters
         ----------
         portname : str
-            Name of comport (e.g. /dev/ttyUSB0 or COM3)
+            Device path (e.g., /dev/ttyUSB0 or COM3). If empty, autodetects.
         speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
+            Serial communication speed (baud rate).
+        timeout : float
+            Serial read timeout in seconds.
 
         Raises
         ------
-        ImportError
-            If helper function to find serial port is not available
         IOError
-            If device could not be opened
+            If a Bus Pirate device cannot be found or the port cannot be opened.
         """
+        actual_portname = portname
+        if not actual_portname:
+            detected_port = self.get_port()
+            if detected_port:
+                actual_portname = detected_port
+            else:
+                raise IOError('Could not autodetect a BusPirate device. Please specify portname.')
 
-        if portname == '':
-            portname = self.get_port()
-        if portname == '':
-            raise IOError('Could not autodetect a BusPirate device.')
-
-        self.portname = portname
+        self.portname = actual_portname
+        self._original_timeout = timeout # Store for restoring in enter_bb
         try:
-            self.port = serial.Serial(portname, speed, timeout=timeout)
-        except serial.serialutil.SerialException:
-            raise IOError('Could not open port %s' % portname)
+            self.port = serial.Serial(self.portname, speed, timeout=timeout)
+        except serial.serialutil.SerialException as e:
+            raise IOError(f'Could not open port {self.portname}: {e}')
+
         self.connected = True
-        self.minDelay = 1 / speed
+        self.minDelay = 1.0 / speed  # Ensure float division
 
-    def disconnect(self):
-        """ Disconnect bus pirate, close com port """
-        if self.port:
+    def disconnect(self) -> None:
+        """ Disconnects from the Bus Pirate and closes the COM port. """
+        if self.port and self.port.is_open:
             self.port.close()
+        self.connected = False
+        self.port = None
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        """ Disconnect bus pirate when exiting"""
+    def __enter__(self):
+        # Allow using BusPirate with 'with' statement
+        return self
+
+    def __exit__(self, exc_type: Optional[type] = None, exc_val: Optional[Exception] = None, exc_tb: Optional[object] = None) -> None:
+        """Ensures disconnection when exiting a 'with' statement context."""
         self.disconnect()
 
-    def timeout(self, timeout = 0.1):
-        sleep(timeout)
+    def pause(self, duration: float = 0.1) -> None:
+        """Pause execution for a specified duration.
 
-    def write(self, value):
+        Parameters
+        ----------
+        duration : float
+            Time to pause in seconds.
+        """
+        sleep(duration)
+
+    def write(self, value: int) -> None:
+        """Write a single byte to the Bus Pirate.
+
+        Parameters
+        ----------
+        value : int
+            The byte value (0-255) to write.
+        """
+        if self.port is None:
+            raise BPError("Serial port not initialized.")
+        if not (0 <= value <= 255):
+            raise ValueError("Value must be a valid byte (0-255).")
         self.port.write(value.to_bytes(1, 'big'))
-        
-    def response(self, byte_count=1, binary=False):
-        """Request a number of bytes
+
+    def response(self, byte_count: int = 1, binary: bool = False) -> Union[bytes, str]:
+        """Request a number of bytes from the Bus Pirate.
 
         Parameters
         ----------
         byte_count : int
-            Number of bytes to read
+            Number of bytes to read.
         binary : bool
-            Return binary (True) or unicode values (False)
+            If True, return raw bytes. If False (default), decode as UTF-8 string.
+
+        Returns
+        -------
+        bytes or str
+            The data read from the Bus Pirate.
         """
-        data = self.port.read(byte_count)
-        if binary is True:
+        if self.port is None:
+            raise BPError("Serial port not initialized.")
+        data: bytes = self.port.read(byte_count)
+        if binary:
             return data
         else:
-            return data.decode()
+            try:
+                return data.decode('utf-8')
+            except UnicodeDecodeError:
+                # If UTF-8 fails, return as repr for safety, or raise error
+                # This indicates non-textual data when binary=False was used.
+                # Consider logging this case.
+                return repr(data) # Or raise an error if strict UTF-8 is expected
 
-    def recurse_end(self):
+    def recurse_end(self) -> None:
         self._attempts_ = 0
 
     def recurse(self, func, *args):
+        # TODO: Add type hint for func: Callable[..., Any]
         if self._attempts_ < 15:
             self._attempts_ += 1
             return func(*args)
-        raise IOError('bus pirate malfunctioning')
+        self.recurse_end() # Reset attempts after failing
+        raise BPError('Bus Pirate malfunctioning or unresponsive after multiple retries.')
 
     def recurse_flush(self, func, *args):
+        # TODO: Add type hint for func: Callable[..., Any]
         if self._attempts_ < 15:
             self._attempts_ += 1
-            for n in range(5):
+            if self.port is None:
+                raise BPError("Serial port not initialized for recurse_flush.")
+            # The purpose of writing 0x00 five times and flushing is likely
+            # to clear any Bus Pirate internal state or buffers before retrying.
+            for _n in range(5):
                 self.write(0x00)
-                self.port.flushInput()
+                self.port.flushInput() # flushInput, not flush()
             return func(*args)
-        raise IOError('bus pirate malfunctioning')
+        self.recurse_end() # Reset attempts after failing
+        raise BPError('Bus Pirate malfunctioning or unresponsive after multiple flush retries.')
 
+    # General Commands for Higher-Level Modes.
+    # Note: Some of these do not have error checking implemented beyond retries
+    # (they might return 0 or 1 from the BP). You may need to do your own
+    # device-specific error checking. This is as planned, since behavior often
+    # depends on the device you are interfacing with.
 
-""" General Commands for Higher-Level Modes.
-Note: Some of these do not have error checking implemented
-(they return a 0 or 1.  You have to do your own error
-checking.  This is as planned, since all of these
-depend on the device you are interfacing with)"""
+    def send_start_bit(self) -> int:
+        """Sends a start bit command (0x02) to the Bus Pirate.
 
+        Used in modes like I2C. Retries on failure.
 
-def send_start_bit(self):
-    self.write(0x02)
-    self.response(1, True)
-    if self.response(1, binary=True) == b'\x01':
-        self.recurse_end()
-        return 1
-    return self.recurse(self.send_start_bit)
+        Returns
+        -------
+        int
+            1 if the Bus Pirate acknowledged the command, otherwise raises BPError after retries.
+        """
+        if self.port is None: raise BPError("Serial port not initialized.")
+        self.write(0x02)
+        # self.response(1, True) # Original code had this, but BP 0x02 command doesn't send a byte back before the status byte
+        if self.response(1, binary=True) == b'\x01':
+            self.recurse_end()
+            return 1
+        return self.recurse(self.send_start_bit)
 
+    def send_stop_bit(self) -> int:
+        """Sends a stop bit command (0x03) to the Bus Pirate.
 
-def send_stop_bit(self):
-    self.write(0x03)
-    if self.response(1, binary=True) == b'\x01':
-        self.recurse_end()
-        return 1
-    return self.recurse(self.send_stop_bit)
+        Used in modes like I2C. Retries on failure.
 
+        Returns
+        -------
+        int
+            1 if the Bus Pirate acknowledged the command, otherwise raises BPError after retries.
+        """
+        if self.port is None: raise BPError("Serial port not initialized.")
+        self.write(0x03)
+        if self.response(1, binary=True) == b'\x01':
+            self.recurse_end()
+            return 1
+        return self.recurse(self.send_stop_bit)
 
-def read_byte(self):
-    """Reads a byte from the bus, returns the byte. You must ACK or NACK each
-    byte manually.  NO ERROR CHECKING (obviously)"""
-    if self.mode == 'raw':
-        self.write(0x06)
+    def read_byte(self) -> bytes:
+        """Reads a byte from the bus.
+
+        In 'raw' mode, sends command 0x06. Otherwise, sends 0x04.
+        You must ACK or NACK each byte manually in relevant modes (e.g., I2C).
+
+        Returns
+        -------
+        bytes
+            The byte read from the bus.
+        """
+        if self.port is None: raise BPError("Serial port not initialized.")
+        if self.mode == 'raw': # Assuming 'raw' refers to rawwire mode
+            self.write(0x06)
+        else:
+            self.write(0x04)
         return self.response(1, binary=True)
-    else:
-        self.write(0x04)
-        return self.response(1, binary=True)
 
+    def bulk_trans(self, byte_count: int, byte_list: List[int]) -> bytes:
+        """Performs a bulk transaction: writes multiple bytes and reads responses.
 
-def bulk_trans(self, byte_count=1, byte_string=None):
-    """this is how you send data in most of the communication modes.
-    See the i2c example function in common_functions.
-    Send the data, and read the returned array.
-    In I2C:  A '1' means that it was NOT ACKNOWLEDGED, and a '0' means that
-    it WAS ACKNOWLEDGED (the reason for this is because this is what the
-    bus pirate itself does...)
-    In modes other than I2C I think it returns whatever data it gets while
-    sending, but this feature is untested.  PLEASE REPORT so that I can
-    document it."""
-    if byte_string is None:
-        pass
-    self.write(0x10 | (byte_count - 1))
-    for i in range(byte_count):
-        self.write(byte_string[i])
-    data = self.response(byte_count + 1, binary=True)
-    if data[0] == 1:  # bus pirate sent an acknolwedge properly
-        self.recurse_end()
-        return data[1:]
-    self.recurse(self.bulk_trans, byte_count, byte_string)
+        Command: 0x10 | (count - 1)
+        Sends each byte from byte_list, then reads (count) bytes back from the BP.
+        The BP typically echos the byte sent or provides an ACK/NACK status.
+
+        Parameters
+        ----------
+        byte_count : int
+            The number of bytes to transfer (1-16).
+        byte_list : List[int]
+            A list of byte values (0-255) to send.
+
+        Returns
+        -------
+        bytes
+            The (byte_count) bytes returned by the Bus Pirate after transmission.
+            The first byte of BP response (before these data bytes) is checked for ACK.
+
+        Raises
+        -------
+        ValueError
+            If byte_count is not between 1 and 16, or if len(byte_list) != byte_count.
+        BPError
+            If the Bus Pirate does not acknowledge the bulk transfer command or on other errors.
+        """
+        if self.port is None: raise BPError("Serial port not initialized.")
+        if not (1 <= byte_count <= 16):
+            raise ValueError("byte_count must be between 1 and 16.")
+        if len(byte_list) != byte_count:
+            raise ValueError(f"Length of byte_list ({len(byte_list)}) must match byte_count ({byte_count}).")
+
+        self.write(0x10 | (byte_count - 1))
+        # BP responds with 0x01 (ACK) if command is OK
+        ack = self.response(1, binary=True)
+        if ack != b'\x01':
+            # If not ACK, attempt retry via recurse. The function itself will handle the command byte again.
+            return self.recurse(self.bulk_trans, byte_count, byte_list)
+
+        # Send the actual bytes
+        for byte_val in byte_list:
+            if not (0 <= byte_val <= 255):
+                raise ValueError("All values in byte_list must be valid bytes (0-255).")
+            self.write(byte_val) # This write is for each data byte in the bulk transfer
+
+        # Read the Bus Pirate's response for each byte sent
+        # BP returns one byte for each byte it was asked to send in the bulk command
+        data_returned: bytes = self.response(byte_count, binary=True)
+        self.recurse_end() # Successful transaction
+        return data_returned

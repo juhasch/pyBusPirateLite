@@ -4,11 +4,12 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyBusPirateLite"
-version = "0.1.0"
+version = "1.0.0"
 description = "Python library for BusPirate"
 readme = "README.md"
 requires-python = ">=3.8"
-license = {text = "MIT"}
+license = {text = "GPL-3.0-or-later"}
+keywords = ["BusPirate"]
 authors = [
     {name = "Garrett Berg", email = "cloudform511@gmail.com"},
     {name = "Juha Schildt", email = "juha.schildt@iki.fi"}

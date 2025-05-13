@@ -94,6 +94,7 @@ class SPI(BusPirate):
            super(SPI, self).enter()
 
         self.write(0x01)
+        self.pause(self._original_timeout)
         if self.response(4) == "SPI1":
             self.mode = 'spi'
             return
@@ -103,7 +104,7 @@ class SPI(BusPirate):
     def modestring(self):
         """ Return mode version string """
         self.write(0x01)
-        self.timeout(self.minDelay * 10)
+        self.pause(self.minDelay * 10)
         return self.response(4)
 
     @property
@@ -168,7 +169,7 @@ class SPI(BusPirate):
             If configuration could not be set
         """
         self.write(0x80 | cfg)
-        self.timeout(self.minDelay)
+        self.pause(self.minDelay)
         if self.response(1, binary=True) != b'\x01':
             raise ValueError("Could not set SPI configuration")
         self._config = cfg
