@@ -1,6 +1,3 @@
-#! /usr/bin/env python
-# -*- coding: utf-8 -*-
-
 # Created by Garrett Berg on 2011-1-22
 # Copyright 2011 Garrett Berg <cloudform511@gmail.com>
 # 
