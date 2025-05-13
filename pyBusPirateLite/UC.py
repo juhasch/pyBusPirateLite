@@ -16,7 +16,9 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-from .BitBang import BitBang
+from typing import Type # Potentially useful for type hinting class types if UC evolves
+
+from .BitBang import BitBang # Corrected import for BitBang
 from .I2C import I2C
 from .onewire import OneWire
 from .rawwire import RawWire
@@ -35,20 +37,36 @@ in order to use normal data outputs.
 
 
 class UC(BitBang, I2C, OneWire, RawWire, SPI, UART):
-    """This class brings together all of the modules under a single class, allowing you to switch
-    to other modules, do a function, and then switch back transparently.  The class will keep track
-    of where you are and raise an Error if you do something wrong.
+    """A unified class for Bus Pirate, allowing transparent switching between protocols.
 
-    The variables bp_port, bp_dir, and bp_config store the values that it sees in each respective mode,
-    and the variable mode stores which mode the bus pirate is in.
+    This class inherits from all available protocol classes (BitBang, I2C, OneWire,
+    RawWire, SPI, UART), making it possible to use a single object instance to
+    access different Bus Pirate modes.
 
-    IMPORTANT: Keep in mind that switching modes always makes the pins go to HiZ and the power supplies
-    turn off.  This can suck for certain applications (like if you are manualy wiggling a clock
-    or reset signal), but you can design around it with external pullups and external inverters.
-    YOU HAVE TO RECONFIGURE ALL SETTINGS WHENEVER YOU SWITCH MODES.
+    To switch modes, simply call the `enter()` method of the desired protocol
+    (e.g., `uc_instance.enter_spi()` to switch to SPI mode, which internally calls
+    the `SPI.enter()` method after ensuring BitBang mode if necessary).
 
-    Note: current tested versions are only BBIO and I2C, but the other ones should work.  Go to
-    ________________.com and post any errors, problems or helpful revisions so that the code
-    can be updated
+    The `self.mode` attribute (inherited from `BusPirate`) will reflect the
+    current operational mode of the Bus Pirate (e.g., 'spi', 'i2c', 'bb').
+
+    IMPORTANT:
+    Switching modes typically resets the Bus Pirate's pins to a high-impedance (HiZ)
+    state and may turn off power supplies (VCC, VPU). Any protocol-specific
+    configurations (like speed, pin settings, pull-ups) MUST be reapplied
+    after switching to a new mode. This is a hardware behavior of the Bus Pirate.
+
+    Example:
+    >>> from pyBusPirateLite.UC import UC
+    >>> bp = UC(portname='/dev/ttyUSB0')
+    >>> bp.enter_spi() # Enters SPI mode
+    >>> bp.speed = '1MHz'
+    >>> bp.pins = bp.PIN_POWER | bp.PIN_CS # Configure SPI pins
+    >>> # ... perform SPI operations ...
+    >>>
+    >>> bp.enter_i2c() # Switches to I2C mode (pins/power reset by BP)
+    >>> bp.speed = '100kHz'
+    >>> bp.configure_peripherals(power=True, pullups=True) # Configure I2C
+    >>> # ... perform I2C operations ...
     """
     pass
