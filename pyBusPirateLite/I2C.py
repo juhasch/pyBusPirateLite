@@ -236,7 +236,7 @@ class I2C(BusPirate):
             self.write(data)
 
         resp = self.response(length+1, binary=True)
-        if resp[0] != '\x01':
+        if resp[0] != 1:
             raise ValueError("Could not transfer I2C data")
 
         return resp[1:]
