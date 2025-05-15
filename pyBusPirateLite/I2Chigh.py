@@ -16,25 +16,26 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
-""
+from typing import List # Added for type hinting
 from .I2C import I2C
+from .base import ProtocolError # For raising specific errors if desired
 
 """ enter binary mode """
 
 class I2Chigh(I2C):
     """High level I2C transactions, not included in uc class"""
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    def __init__(self, portname: str = '', speed: int = 115200, timeout: float = 0.1, connect: bool = True):
         """
         This constructor by default conntects to the first buspirate it can
         find. If you don't want that, set connect to False.
 
         Parameters
         ----------
-        portname : str
+        portname : str, optional
             Name of comport (/dev/bus_pirate or COM3)
-        speed : int
+        speed : int, optional
             Communication speed, use default of 115200
-        timeout : int
+        timeout : float, optional
             Timeout in s to wait for reply
  
         Examples
@@ -44,58 +45,87 @@ class I2Chigh(I2C):
         """
         super().__init__(portname, speed, timeout, connect)
 
-    def get_byte(self, i2caddr, addr):
+    def get_byte(self, i2c_address: int, register_address: int) -> int:
         """ Read one byte from address addr """
         self.start()
-        stat = self.transfer([i2caddr << 1, addr])
+        ack_status_write: bytes = self.transfer([(i2c_address << 1), register_address])
+        if 0x01 in ack_status_write:
+            raise IOError(f"I2C device 0x{i2c_address:02x} did not ACK register 0x{register_address:02x} for read setup.")
+
         self.start()
-        stat += self.transfer([i2caddr << 1 | 1])
-        r = self.read_byte()
+        ack_status_read_addr: bytes = self.transfer([(i2c_address << 1) | 0x01])
+        if 0x01 in ack_status_read_addr:
+            raise IOError(f"I2C device 0x{i2c_address:02x} did not ACK for read operation.")
+
+        read_value_byte: bytes = self.read_byte()
         self.nack()
         self.stop()
-        if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
-        return ord(r)
+        
+        return read_value_byte[0]
 
-    def set_byte(self, i2caddr, addr, value):
+    def set_byte(self, i2c_address: int, register_address: int, value: int) -> None:
         """ Write one byte to address addr """
+        if not (0 <= value <= 255):
+            raise ValueError(f"Value to write must be a byte (0-255), got {value}.")
+
         self.start()
-        stat = self.transfer([i2caddr << 1, addr, value])
+        ack_status: bytes = self.transfer([(i2c_address << 1), register_address, value])
         self.stop()
-        if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
 
-    def command(self, i2caddr, cmd):
+        if 0x01 in ack_status:
+            nack_indices = [i for i, ack_byte in enumerate(ack_status) if ack_byte == 0x01]
+            raise IOError(f"I2C write to device 0x{i2c_address:02x}, register 0x{register_address:02x} failed. NACK received at transfer byte(s): {nack_indices}")
+
+    def command(self, i2c_address: int, cmd_byte: int) -> None:
         """ Writes one byte command to slave """
-        self.send_start_bit()
-        stat = self.bulk_trans(2, [i2caddr << 1, cmd])
-        self.send_stop_bit()
-        if stat[0] == chr(0x01):
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+        if not (0 <= cmd_byte <= 255):
+            raise ValueError(f"Command byte must be 0-255, got {cmd_byte}.")
 
-    def set_word(self, i2caddr, addr, value):
+        self.start()
+        ack_status: bytes = self.transfer([(i2c_address << 1), cmd_byte])
+        self.stop()
+
+        if 0x01 in ack_status:
+            nack_indices = [i for i, ack_byte in enumerate(ack_status) if ack_byte == 0x01]
+            raise IOError(f"I2C command to device 0x{i2c_address:02x} failed. NACK at transfer byte(s): {nack_indices}")
+
+    def set_word(self, i2c_address: int, register_address: int, value: int) -> None:
         """ Writes two byte value (big-endian) to address addr """
-        vh = value / 256
-        vl = value % 256
-        self.send_start_bit()
-        stat = self.bulk_trans(4, [i2caddr << 1, addr, vh, vl])
-        self.send_stop_bit()
-        if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
+        if not (0 <= value <= 65535):
+            raise ValueError(f"Value for set_word must be 0-65535, got {value}.")
 
-    def get_word(self, i2caddr, addr):
+        vh: int = (value >> 8) & 0xFF
+        vl: int = value & 0xFF
+
+        self.start()
+        ack_status: bytes = self.transfer([(i2c_address << 1), register_address, vh, vl])
+        self.stop()
+
+        if 0x01 in ack_status:
+            nack_indices = [i for i, ack_byte in enumerate(ack_status) if ack_byte == 0x01]
+            raise IOError(f"I2C set_word to device 0x{i2c_address:02x}, register 0x{register_address:02x} failed. NACK at transfer byte(s): {nack_indices}")
+
+    def get_word(self, i2c_address: int, register_address: int) -> int:
         """ Reads two byte value (big-endian) from address addr """
-        self.send_start_bit()
-        stat = self.bulk_trans(2, [i2caddr << 1, addr])
-        self.send_start_bit()
-        stat += self.bulk_trans(1, [i2caddr << 1 | 1])
-        rh = self.read_byte()
-        self.send_ack()
-        rl = self.read_byte()
-        self.send_nack()
-        self.send_stop_bit()
-        if stat.find(chr(0x01)) != -1:
-            raise IOError("I2C command on address 0x%02x not acknowledged!" % (i2caddr))
-        return ord(rh) * 256 + ord(rl)
+        self.start()
+        ack_status_write: bytes = self.transfer([(i2c_address << 1), register_address])
+        if 0x01 in ack_status_write:
+            raise IOError(f"I2C device 0x{i2c_address:02x} did not ACK register 0x{register_address:02x} for get_word setup.")
+
+        self.start()
+        ack_status_read_addr: bytes = self.transfer([(i2c_address << 1) | 0x01])
+        if 0x01 in ack_status_read_addr:
+            raise IOError(f"I2C device 0x{i2c_address:02x} did not ACK for get_word read operation.")
+
+        rh_byte: bytes = self.read_byte()
+        self.ack()
+        rl_byte: bytes = self.read_byte()
+        self.nack()
+        self.stop()
+        
+        rh_val: int = rh_byte[0]
+        rl_val: int = rl_byte[0]
+        
+        return (rh_val << 8) + rl_val
 
 '''some standard functions for i2c communication'''

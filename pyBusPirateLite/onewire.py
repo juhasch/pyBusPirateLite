@@ -20,81 +20,226 @@
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
 """
-Binary1WIRE mode:
-00000000 - reset to BBIO
-00000001 - mode version string (1W01)
-00000010 - 1wire reset
-00000100 - read byte
-00001000 - ROM search macro (0xf0)
-00001001 - ALARM search macro (0xec)
-0001xxxx - Bulk transfer, send 1-16 bytes (0=1byte!)
-0100wxyz - Configure peripherals w=power, x=pullups, y=AUX, z=CS (
-0101wxyz - Read peripherals (planned, not implemented)
+Provides an interface to the Bus Pirate's 1-Wire binary mode.
+
+Binary 1-Wire Mode Commands (sent to Bus Pirate):
+- 0x00 (RESET_TO_BBIO): Resets Bus Pirate to BitBang I/O mode.
+- 0x01 (MODE_VERSION): Get mode version string (responds "1W01").
+- 0x02 (ONEWIRE_RESET): Perform a 1-Wire bus reset. Responds 0x01 if presence pulse detected, 0x00 otherwise.
+- 0x04 (READ_BYTE): Read a byte from the 1-Wire bus.
+- 0x08 (ROM_SEARCH_MACRO): Execute ROM search macro (0xF0 command).
+- 0x09 (ALARM_SEARCH_MACRO): Execute ALARM search macro (0xEC command).
+- 0x1x (BULK_TRANSFER): Bulk transfer, send 1-16 bytes. xxxx = (num_bytes - 1).
+- 0x4x (CONFIGURE_PERIPHERALS): Configure peripherals (power, pull-ups, AUX, CS).
+                        w=power, x=pull-ups, y=AUX, z=CS.
+- 0x5x (READ_PERIPHERALS): Read peripheral status (planned, not implemented by BP firmware at time of writing).
 """
 
-from .BitBang import BusPirate
+from typing import Optional, List, Union
+
+from .base import BusPirate, ProtocolError, BPError
 
 
 class OneWire(BusPirate):
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
-        """ Provide access to the Bus Pirate Onewire protocol
+    """ Interface for Bus Pirate's 1-Wire binary communication mode. """
+
+    # 1-Wire Command Constants
+    _CMD_ENTER_1WIRE_MODE: int = 0x04
+    _CMD_GET_MODE_VERSION: int = 0x01
+    _CMD_RESET: int = 0x02
+    _CMD_READ_BYTE_CMD: int = 0x04
+    _CMD_ROM_SEARCH: int = 0x08
+    _CMD_ALARM_SEARCH: int = 0x09
+
+    _EXPECTED_MODE_VERSION: str = "1W01"
+
+    def __init__(self, portname: str = '', speed: int = 115200, timeout: float = 0.1, connect: bool = True):
+        """Provide access to the Bus Pirate Onewire protocol.
 
         Parameters
         ----------
-        portname : str
-            Name of comport (/dev/bus_pirate or COM3)
-        speed : int
-            Communication speed, use default of 115200
-        timeout : int
-            Timeout in s to wait for reply
-        connect : bool
-            Automatically connect to BusPirate (default) 
+        portname : str, optional
+            Name of the serial port (e.g., '/dev/ttyUSB0' or 'COM3'). Default is empty.
+        speed : int, optional
+            Serial communication speed. Default is 115200.
+        timeout : float, optional
+            Timeout in seconds for serial communication. Default is 0.1.
+        connect : bool, optional
+            Whether to connect to the Bus Pirate immediately. Default is True.
 
         Example
         -------
-        >>> spi = OneWire()
+        >>> from pyBusPirateLite.onewire import OneWire
+        >>> ow = OneWire() # Connects to the first Bus Pirate found
         """
         super().__init__(portname, speed, timeout, connect)
 
-    def enter_1wire(self):
-        self.check_mode('bb')
-        self.write(0x04)
-        self.timeout(self.minDelay * 10)
-        if self.response(4) == "1W01":
+    def enter_1wire(self) -> bool:
+        """Enters 1-Wire binary mode on the Bus Pirate.
+
+        Attempts to switch the Bus Pirate from BitBang mode to 1-Wire mode.
+
+        Returns
+        -------
+        bool
+            True if 1-Wire mode was entered successfully, False otherwise.
+
+        Raises
+        -------
+        BPError
+            If already in 1-Wire mode or cannot enter BitBang mode first.
+        ProtocolError
+            If an unexpected response is received from the Bus Pirate.
+        """
+        if self.mode == '1wire':
+            raise BPError("Already in 1-Wire mode.") 
+        
+        if self.mode != 'bb':
+            super().enter()
+
+        self.write(self._CMD_ENTER_1WIRE_MODE)
+        response_str = self.response(4)
+        if response_str == self._EXPECTED_MODE_VERSION:
             self.mode = '1wire'
-            self.bp_port = 0b00         # two bit port
-            self.bp_config = 0b0000
-            self._attempts_ = 1
-            return 1
-        return self.recurse_flush(self.enter_1wire)
+            self.recurse_end()
+            return True
+        raise ProtocolError(f"Failed to enter 1-Wire mode. Expected '{self._EXPECTED_MODE_VERSION}', got '{response_str}'")
 
-    def reset(self):
-        self.check_mode('1wire')
-        self.port.write(chr(0x02))
-        self.timeout(0.1)
-        return self.response(1)
+    def reset(self) -> bool:
+        """Performs a 1-Wire bus reset.
 
-    def rom_search(self):
-        self.check_mode('1wire')
-        self.port.write(chr(0x08))
-        self.timeout(0.1)
-        self.__group_response()
+        Sends the 1-Wire reset command to the Bus Pirate.
 
-    def alarm_search(self):
-        self.check_mode('1wire')
-        self.port.write(chr(0x09))
-        self.timeout(0.1)
-        self.__group_response()
+        Returns
+        -------
+        bool
+            True if a presence pulse was detected from a 1-Wire device, False otherwise.
+            The Bus Pirate responds with b'\x01' for presence, b'\x00' for no presence.
 
-    def __group_response(self):
+        Raises
+        -------
+        ProtocolError
+            If not in 1-Wire mode or if an unexpected response is received.
+        """
         self.check_mode('1wire')
-        EOD = chr(0xff)
-        count = 0
-        while count < 8:
-            if count > 255:
-                raise IOError('EOD counter exceeded')
-            data = self.port.read(8)
-            if data == EOD:
-                count +=1
+        self.write(self._CMD_RESET)
+        response_byte = self.response(1, binary=True)
+        if response_byte == b'\x01':
+            return True
+        elif response_byte == b'\x00':
+            return False
+        raise ProtocolError(f"Unexpected response after 1-Wire reset: {response_byte.hex()}. Expected b'01' or b'00'.")
+
+    def rom_search(self) -> List[bytes]:
+        """Executes the 1-Wire ROM search command (0xF0).
+
+        This method initiates the ROM search sequence on the Bus Pirate and 
+        processes the response to find 1-Wire device ROM IDs.
+        Note: This is a simplified version that prints found data.
+              A production version should parse and return the ROM IDs.
+
+        Returns
+        -------
+        List[bytes]
+            A list of found ROM IDs, each as an 8-byte `bytes` object.
+            (Currently prints and returns, for full functionality, parsing is needed).
+
+        Raises
+        -------
+        ProtocolError
+            If not in 1-Wire mode.
+        """
+        self.check_mode('1wire')
+        self.write(self._CMD_ROM_SEARCH)
+        return self.__group_response()
+
+    def alarm_search(self) -> List[bytes]:
+        """Executes the 1-Wire ALARM search command (0xEC).
+
+        This method initiates the ALARM search sequence on the Bus Pirate.
+        Useful for finding devices that have their alarm flag set.
+        Note: This is a simplified version that prints found data.
+
+        Returns
+        -------
+        List[bytes]
+            A list of found ROM IDs (devices in alarm state), each as an 8-byte `bytes` object.
+            (Currently prints and returns, for full functionality, parsing is needed).
+
+        Raises
+        -------
+        ProtocolError
+            If not in 1-Wire mode.
+        """
+        self.check_mode('1wire')
+        self.write(self._CMD_ALARM_SEARCH)
+        return self.__group_response()
+
+    def __group_response(self) -> List[bytes]:
+        """Helper method to read and process grouped responses from ROM/Alarm search.
+
+        The Bus Pirate sends data in 8-byte chunks for each device found.
+        It indicates the end of data with a sequence of 0xFF bytes (typically 8 of them).
+        This method reads these chunks until the End-Of-Data marker is detected.
+
+        Returns
+        -------
+        List[bytes]
+            A list of 8-byte device ROM IDs found during the search.
+
+        Raises
+        -------
+        IOError (OSError)
+            If an excessive number of End-Of-Data markers are received, 
+            suggesting a communication issue.
+        ProtocolError
+            If not in 1-Wire mode.
+        """
+        self.check_mode('1wire')
+        
+        found_roms: List[bytes] = []
+        eod_marker_byte: int = 0xFF
+        eod_chunk: bytes = bytes([eod_marker_byte] * 8)
+        
+        eod_consecutive_chunks = 0
+
+        for _ in range(256):
+            data_chunk: bytes = self.port.read(8)
+            
+            if not data_chunk:
+                break
+
+            if data_chunk == eod_chunk:
+                eod_consecutive_chunks += 1
+                break 
             else:
-                print(data)
+                print(f"Found 1-Wire device data: {data_chunk.hex()}")
+                found_roms.append(data_chunk)
+                eod_consecutive_chunks = 0
+        
+        if eod_consecutive_chunks == 0 and not found_roms:
+            print("No 1-Wire devices found or EOD marker not detected clearly.")
+            
+        return found_roms
+
+    def read_byte(self) -> int:
+        """Reads a single byte from the 1-Wire bus.
+
+        The Bus Pirate handles the low-level 1-Wire read timing.
+
+        Returns
+        -------
+        int
+            The byte value read from the bus.
+
+        Raises
+        -------
+        ProtocolError
+            If not in 1-Wire mode or if an unexpected response is received.
+        """
+        self.check_mode('1wire')
+        self.write(self._CMD_READ_BYTE_CMD)
+        response_byte = self.response(1, binary=True)
+        if not response_byte:
+            raise ProtocolError("No response from Bus Pirate after 1-Wire read_byte command.")
+        return response_byte[0]

@@ -19,6 +19,8 @@
 # You should have received a copy of the GNU General Public License
 # along with pyBusPirate.  If not, see <http://www.gnu.org/licenses/>.
 
+from typing import Optional, Union, Callable, Any, List, Type
+from types import TracebackType
 from time import sleep
 
 import serial
@@ -54,7 +56,9 @@ class BusPirate:
     PIN_PULLUP = 0x20
     PIN_POWER = 0x40
 
-    def __init__(self, portname='', speed=115200, timeout=0.1, connect=True):
+    _attempts_: int = 0  # global stored for use in enter
+
+    def __init__(self, portname: str = '', speed: int = 115200, timeout: float = 0.1, connect: bool = True):
         """
         This constructor by default conntects to the first buspirate it can
         find. If you don't want that, set connect to False.
@@ -69,26 +73,24 @@ class BusPirate:
             Timeout in s to wait for reply
         """
 
-        self.minDelay = 1 / 115200
-        self.mode = None
-        self.port = None
-        self.connected = False
-        self.t = True
-        self.bp_config = None
-        self.bp_port = None
-        self.bp_dir = None
-        self.portname = ''
-        self.pins_state = None
-        self.pins_direction = None
+        self.minDelay: float = 1 / 115200.0  # Ensure float division
+        self.mode: Optional[str] = None
+        self.port: Optional[serial.Serial] = None
+        self.connected: bool = False
+        self.t: bool = True # Its usage is unclear, seems unused.
+        self.bp_config: Optional[int] = None
+        self.bp_port: Optional[int] = None
+        self.bp_dir: Optional[int] = None
+        self.portname: str = ''
+        self.pins_state: Optional[int] = None # Assuming int based on other port/config vars
+        self.pins_direction: Optional[int] = None # Assuming int
 
         if connect is True:
             self.connect(portname, speed, timeout)
             self.enter()
 
-    _attempts_ = 0  # global stored for use in enter
-
     @property
-    def adc_value(self):
+    def adc_value(self) -> float:
         """ Read and return the voltage on the analog input pin. """
         # raise error to prevent tab-completion having side-effects
         if self.mode != 'bb':
@@ -100,17 +102,17 @@ class BusPirate:
         # for conversion formula.
         return (val/1024.0) * 3.3 * 2
 
-    def set_power_on(self, val):
+    def set_power_on(self, val: bool) -> None:
         self.write(0x80 | (self.PIN_POWER if val else 0))
         self.response(1, binary=True)
-    power_on = property(None, set_power_on, doc="""
+    power_on = property(fget=None, fset=set_power_on, doc="""
         Enable or disable the built-in power supplies. Note that the power
         supplies reset every time you change modes.
 
         This is a read-only attribute due to API limitations of the buspirate
         firmware. """)
 
-    def enter_bb(self):
+    def enter_bb(self) -> bool:
         """Enter bitbang mode
 
         This is the be-all-end-all restart function.  It will keep trying
@@ -164,7 +166,7 @@ class BusPirate:
             return True
         raise BPError('Could not enter bitbang mode')
 
-    def enter(self):
+    def enter(self) -> Optional[bool]:
         """Enter bitbang mode.
            Will be overriden by other classes 
         """
@@ -172,7 +174,7 @@ class BusPirate:
             return
         return self.enter_bb()
 
-    def hw_reset(self):
+    def hw_reset(self) -> None:
         """Reset Bus Pirate
 
         The Bus Pirate responds 0x01 and then performs a complete hardware reset.
@@ -186,7 +188,7 @@ class BusPirate:
         self.timeout(.1)
         self.mode = None
 
-    def get_port(self):
+    def get_port(self) -> Optional[str]:
         """Detect Buspirate and return first detected port
         
         Returns
@@ -215,8 +217,9 @@ class BusPirate:
                 if hasattr(port, 'pid') and hasattr(port, 'vid'):
                     if port.vid == 1027 and port.pid == 24577:
                         return port.device
+        return None # Explicitly return None if no port is found
 
-    def connect(self, portname='', speed=115200, timeout=0.1):
+    def connect(self, portname: str = '', speed: int = 115200, timeout: float = 0.1) -> None:
         """Will try to automatically find a port regardless of os
 
         Parameters
@@ -238,7 +241,7 @@ class BusPirate:
 
         if portname == '':
             portname = self.get_port()
-        if portname == '':
+        if not portname: # Check if portname is None or empty after trying to get_port
             raise IOError('Could not autodetect a BusPirate device.')
 
         self.portname = portname
@@ -249,22 +252,22 @@ class BusPirate:
         self.connected = True
         self.minDelay = 1 / speed
 
-    def disconnect(self):
+    def disconnect(self) -> None:
         """ Disconnect bus pirate, close com port """
         if self.port:
             self.port.close()
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
+    def __exit__(self, exc_type: Optional[Type[BaseException]], exc_val: Optional[BaseException], exc_tb: Optional[TracebackType]) -> None:
         """ Disconnect bus pirate when exiting"""
         self.disconnect()
 
-    def timeout(self, timeout = 0.1):
+    def timeout(self, timeout: float = 0.1) -> None:
         sleep(timeout)
 
-    def write(self, value):
+    def write(self, value: int) -> None:
         self.port.write(value.to_bytes(1, 'big'))
         
-    def response(self, byte_count=1, binary=False):
+    def response(self, byte_count: int = 1, binary: bool = False) -> Union[str, bytes]:
         """Request a number of bytes
 
         Parameters
@@ -280,16 +283,16 @@ class BusPirate:
         else:
             return data.decode()
 
-    def recurse_end(self):
+    def recurse_end(self) -> None:
         self._attempts_ = 0
 
-    def recurse(self, func, *args):
+    def recurse(self, func: Callable[..., Any], *args: Any) -> Any:
         if self._attempts_ < 15:
             self._attempts_ += 1
             return func(*args)
         raise IOError('bus pirate malfunctioning')
 
-    def recurse_flush(self, func, *args):
+    def recurse_flush(self, func: Callable[..., Any], *args: Any) -> Any:
         if self._attempts_ < 15:
             self._attempts_ += 1
             for n in range(5):
@@ -306,24 +309,24 @@ checking.  This is as planned, since all of these
 depend on the device you are interfacing with)"""
 
 
-def send_start_bit(self):
+def send_start_bit(self: BusPirate) -> int:
     self.write(0x02)
     self.response(1, True)
     if self.response(1, binary=True) == b'\x01':
         self.recurse_end()
         return 1
-    return self.recurse(self.send_start_bit)
+    return self.recurse(send_start_bit, self)
 
 
-def send_stop_bit(self):
+def send_stop_bit(self: BusPirate) -> int:
     self.write(0x03)
     if self.response(1, binary=True) == b'\x01':
         self.recurse_end()
         return 1
-    return self.recurse(self.send_stop_bit)
+    return self.recurse(send_stop_bit, self)
 
 
-def read_byte(self):
+def read_byte(self: BusPirate) -> bytes:
     """Reads a byte from the bus, returns the byte. You must ACK or NACK each
     byte manually.  NO ERROR CHECKING (obviously)"""
     if self.mode == 'raw':
@@ -334,7 +337,7 @@ def read_byte(self):
         return self.response(1, binary=True)
 
 
-def bulk_trans(self, byte_count=1, byte_string=None):
+def bulk_trans(self: BusPirate, byte_count: int = 1, byte_string: Optional[List[int]] = None) -> bytes:
     """this is how you send data in most of the communication modes.
     See the i2c example function in common_functions.
     Send the data, and read the returned array.
@@ -345,12 +348,23 @@ def bulk_trans(self, byte_count=1, byte_string=None):
     sending, but this feature is untested.  PLEASE REPORT so that I can
     document it."""
     if byte_string is None:
+        # Handle cases where byte_string might be legitimately None if that's intended
+        # For now, assuming if None, it might lead to an error or specific behavior
+        # Depending on firmware, it might require byte_count to be 0 or handle it.
+        # For type safety with current usage, we'll assume it should be provided if byte_count > 0
+        # Or the logic should prevent access if None.
+        # Given the loop `for i in range(byte_count): self.write(byte_string[i])`
+        # byte_string cannot be None if byte_count > 0.
+        # Raising an error or ensuring byte_string is not None if byte_count > 0
+        # would be a runtime check, not just a type hint.
+        # For now, we keep Optional and the user of this function needs to be careful.
         pass
     self.write(0x10 | (byte_count - 1))
-    for i in range(byte_count):
-        self.write(byte_string[i])
+    if byte_string is not None: # Ensure byte_string is not None before iterating
+        for i in range(byte_count):
+            self.write(byte_string[i])
     data = self.response(byte_count + 1, binary=True)
     if data[0] == 1:  # bus pirate sent an acknolwedge properly
         self.recurse_end()
         return data[1:]
-    self.recurse(self.bulk_trans, byte_count, byte_string)
+    return self.recurse(bulk_trans, self, byte_count, byte_string)
